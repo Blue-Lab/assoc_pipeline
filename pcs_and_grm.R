@@ -4,35 +4,38 @@ library(SeqArray)
 library(GENESIS)
 library(SeqVarTools)
 library(magrittr)
+library(SNPRelate)
 
 sessionInfo()
 
 # read arguments
-argp <- arg_parser("Generate PCs and GRM")
-argp %<>% add_argument("gds_file", help = "GDS file")
-argp %<>% add_argument("--out_prefix", help = "Prefix for output files")
-argp %<>% add_argument("--snpset", help = "File with vector of variant IDs")
-argp %<>% add_argument("--sampset", help = "File with vector of sample IDs")
-argp %<>% add_argument("--kin.thresh", default = 5.5,
-                       help = "Kinship threshold for pcair (2 ^ -kin.thresh)")
-argp %<>% add_argument("--keep_king", flag = TRUE,
-                       help = "Save KING-robust GRM")
+argp <- arg_parser("Generate PCs and GRM") %>%
+  add_argument("gds_file", help = "GDS file") %>%
+  add_argument("--out_prefix", help = "Prefix for output files") %>%
+  add_argument("--variant_id", help = "File with vector of variant IDs") %>%
+  add_argument("--sample_id", help = "File with vector of sample IDs") %>%
+  add_argument("--kin.thresh", default = 5.5,
+               help = "Kinship threshold for pcair (2 ^ -kin.thresh)") %>%
+  add_argument("--n_pcs", default = 3,
+               "Number of PCs to pass to pcrelate") %>%
+  add_argument("--keep_king", flag = TRUE, help = "Save KING-robust GRM")
+
 argv <- parse_args(argp)
-if (!is.na(argv$snpset)) {
-  snpset <- readRDS(argv$snpset)
+if (!is.na(argv$variant_id)) {
+  variant_id <- readRDS(argv$variant_id)
 } else {
-  snpset <- NULL
+  variant_id <- NULL
 }
-if (!is.na(argv$snpset)) {
-  sampset <- readRDS(argv$sampset)
+if (!is.na(argv$variant_id)) {
+  sample_id <- readRDS(argv$sample_id)
 } else {
-  sampset <- NULL
+  sample_id <- NULL
 }
 kin.thresh <- 2 ^ (-argv$kin.thresh)
 out_prefix <- ifelse(!is.na(argv$out_prefix), argv$out_prefix, "")
 gds <- seqOpen(argv$gds_file)
 
-king <- snpgdsIBDKING(gds, snp.id = snpset, sample.id = sampset)
+king <- snpgdsIBDKING(gds, snp.id = variant_id, sample.id = sample_id)
 kingMat <- king$kinship
 colnames(kingMat) <- rownames(kingMat) <- king$sample.id
 
@@ -44,30 +47,28 @@ if (argv$keep_king) {
   rm(kingMat_temp)
 }
 
-
 mypcair <- pcair(gds, kinobj = kingMat, kin.thresh = kin.thresh,
-                 divobj = kingMat, snp.include = snpset,
-                 sample.include = sampset)
+                 divobj = kingMat, snp.include = variant_id,
+                 sample.include = sample_id)
 
-seqSetFilter(gds, variant.id = snpset, sample.id = sampset)
+seqSetFilter(gds, variant.id = variant_id, sample.id = sample_id)
 seqData <- SeqVarData(gds)
 print("1st iteration PC-relate")
 iterator <- SeqVarBlockIterator(seqData, verbose=FALSE)
-mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, 1:3],
+mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
                     training.set = mypcair$unrels)
 pcrelate_matrix <- pcrelateToMatrix(mypcrel, scaleKin=2, thresh = kin.thresh)
 
 pca <- pcair(seqData, kinobj = pcrelate_matrix, kin.thresh = kin.thresh,
-             divobj = kingMat, snp.include = snpset, scan.include = sampset)
+             divobj = kingMat, snp.include = variant_id, scan.include = sample_id)
 
 resetIterator(iterator, verbose = TRUE)
 
 print("2nd iteration PC-relate")
 iterator <- SeqVarBlockIterator(seqData, verbose = FALSE)
-pcrel2 <- pcrelate(iterator, pcs = pca$vectors[, 1:3],
+pcrel2 <- pcrelate(iterator, pcs = pca$vectors[, seq(argv$n_pcs)],
                    training.set = pca$unrels)
 
-
-pcrelate_matrix <- pcrelateToMatrix(pcrel2, scaleKin = 2, thresh = kin.thresh)
+pcrelate_matrix2 <- pcrelateToMatrix(pcrel2, scaleKin = 2, thresh = kin.thresh)
 saveRDS(pca$vectors, paste0(out_prefix, "pcs.rds"))
-saveRDS(pcrelate_matrix, paste0(out_prefix, "pcr_grm.rds"))
+saveRDS(pcrelate_matrix2, paste0(out_prefix, "pcr_grm.rds"))
