@@ -1,3 +1,4 @@
+#! /usr/bin/env Rscript
 library(SeqArray)
 library(SNPRelate)
 library(argparser)
