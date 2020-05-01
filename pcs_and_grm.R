@@ -60,7 +60,8 @@ mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
 pcrelate_matrix <- pcrelateToMatrix(mypcrel, scaleKin=2, thresh = kin.thresh)
 
 pca <- pcair(seqData, kinobj = pcrelate_matrix, kin.thresh = kin.thresh,
-             divobj = kingMat, snp.include = variant_id, scan.include = sample_id)
+             divobj = kingMat, snp.include = variant_id,
+             sample.include = sample_id)
 
 resetIterator(iterator, verbose = TRUE)
 
