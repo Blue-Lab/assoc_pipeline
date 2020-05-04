@@ -11,7 +11,8 @@ sessionInfo()
 # read arguments
 argp <- arg_parser("Generate PCs and GRM") %>%
   add_argument("gds_file", help = "GDS file") %>%
-  add_argument("--out_prefix", help = "Prefix for output files") %>%
+  add_argument("--out_prefix", help = "Prefix for output files",
+               default = "") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
   add_argument("--kin_thresh", default = 5.5,
@@ -32,7 +33,7 @@ if (!is.na(argv$variant_id)) {
   sample_id <- NULL
 }
 kin_thresh <- 2 ^ (-argv$kin_thresh)
-out_prefix <- ifelse(!is.na(argv$out_prefix), argv$out_prefix, "")
+out_prefix <- argv$out_prefix
 gds <- seqOpen(argv$gds_file)
 
 king <- snpgdsIBDKING(gds, snp.id = variant_id, sample.id = sample_id)
