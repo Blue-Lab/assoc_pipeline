@@ -41,6 +41,11 @@ missingness to check sex.
 [sample_qc.R](sample_qc.R)
 
 
+### Variant QC
+
+[variant_qc.R](variant_qc.R)
+
+
 ## Relatedness
 
 http://bioconductor.org/packages/release/bioc/vignettes/GENESIS/inst/doc/assoc_test_seq.html#population-structure-and-relatedness
