@@ -1,10 +1,6 @@
 #! /usr/bin/env Rscript
-library(SeqArray)
-library(SeqVarTools)
-library(ggplot2)
 library(argparser)
 library(magrittr)
-sessionInfo()
 
 # read arguments
 argp <- arg_parser("Variant QC") %>%
@@ -13,8 +9,15 @@ argp <- arg_parser("Variant QC") %>%
                default="") %>%
   add_argument("--sample_id", help="File with vector of sample IDs") %>%
   add_argument("--num_cores", help="Number of cores to utilize for parallel processing", default=1)
-
 argv <- parse_args(argp)
+
+# load libraries
+library(SeqArray)
+library(SeqVarTools)
+library(ggplot2)
+
+# log versions and arguments for reproducibility
+sessionInfo()
 print(argv)
 
 # open GDS file
