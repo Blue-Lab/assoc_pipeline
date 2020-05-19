@@ -1,13 +1,13 @@
 #! /usr/bin/env Rscript
-library(SeqArray)
 library(argparser)
-sessionInfo()
 
 # read arguments
 argp <- arg_parser("Convert BED to GDS")
 argp <- add_argument(argp, "bed_prefix", help="prefix for bed/bim/fam")
 argp <- add_argument(argp, "--out_file", help="output file name (default is <bed_prefix>.gds)")
 argv <- parse_args(argp)
+library(SeqArray)
+sessionInfo()
 print(argv)
 
 bed.prefix <- argv$bed_prefix

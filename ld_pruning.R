@@ -1,8 +1,5 @@
 #! /usr/bin/env Rscript
-library(SeqArray)
-library(SNPRelate)
 library(argparser)
-sessionInfo()
 
 # read arguments
 argp <- arg_parser("LD pruning")
@@ -15,6 +12,9 @@ argp <- add_argument(argp, "--missing", help="maximum missing call rate for vari
 argp <- add_argument(argp, "--r_threshold", help="r threshold for LD", default=sqrt(0.1))
 argp <- add_argument(argp, "--window_size", help="window size in Mb", default=10)
 argv <- parse_args(argp)
+library(SeqArray)
+library(SNPRelate)
+sessionInfo()
 print(argv)
 
 # parse file paths

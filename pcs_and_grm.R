@@ -1,12 +1,6 @@
 #! /usr/bin/env Rscript
 library(argparser)
-library(SeqArray)
-library(GENESIS)
-library(SeqVarTools)
 library(magrittr)
-library(SNPRelate)
-
-sessionInfo()
 
 # read arguments
 argp <- arg_parser("Generate PCs and GRM") %>%
@@ -20,6 +14,14 @@ argp <- arg_parser("Generate PCs and GRM") %>%
   add_argument("--n_pcs", default = 3,
                "Number of PCs to pass to pcrelate") %>%
   add_argument("--keep_king", flag = TRUE, help = "Save KING-robust GRM")
+
+library(SeqArray)
+library(GENESIS)
+library(SeqVarTools)
+library(SNPRelate)
+
+sessionInfo()
+print(argv)
 
 argv <- parse_args(argp)
 if (!is.na(argv$variant_id)) {
