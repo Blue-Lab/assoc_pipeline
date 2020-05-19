@@ -22,6 +22,8 @@ library(SeqArray)
 library(SeqVarTools)
 library(Biobase)
 library(GENESIS)
+sessionInfo()
+print(argv)
 
 gds <- seqOpen(argv$gds_file)
 pheno <- readRDS(argv$pheno_file)
