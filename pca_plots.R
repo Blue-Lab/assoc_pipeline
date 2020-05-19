@@ -10,12 +10,15 @@ argp <- arg_parser("Generate PC plots") %>%
   add_argument("--n_pairs", help = "number of pairwise plots", default = 6)
 
 argv <- parse_args(argp)
-out_prefix <- argv$out_prefix
 
 library(Biobase)
 library(dplyr)
 library(ggplot2)
 library(GGally)
+sessionInfo()
+print(argv)
+
+out_prefix <- argv$out_prefix
 
 pca <- readRDS(argv$pcair_file)
 pcs <- as.data.frame(pca$vectors[pca$unrels,])
