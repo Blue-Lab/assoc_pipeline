@@ -21,9 +21,10 @@ library(SeqVarTools)
 library(SNPRelate)
 
 sessionInfo()
-print(argv)
 
 argv <- parse_args(argp)
+print(argv)
+
 if (!is.na(argv$variant_id)) {
   variant_id <- readRDS(argv$variant_id)
 } else {
