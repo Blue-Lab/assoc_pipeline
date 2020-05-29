@@ -37,8 +37,8 @@ miss.df <- data.frame(sample.id, missing.rate, stringsAsFactors=FALSE)
 saveRDS(miss.df, paste0(argv$out_prefix, "missing_by_sample.rds"))
 
 # plot
-ggplot(miss.df, aes(missing.rate)) +
+p <- ggplot(miss.df, aes(missing.rate)) +
     geom_histogram(binwidth=0.01, boundary=0)
-ggsave(paste0(argv$out_prefix, "missing_by_sample.pdf"))
+ggsave(paste0(argv$out_prefix, "missing_by_sample.pdf"), plot=p)
 
 seqClose(gds)

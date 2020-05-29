@@ -48,12 +48,12 @@ var.df <- data.frame(variant.id, missing.rate, ref.freq, maf)
 saveRDS(var.df, paste0(argv$out_prefix, "variant_metrics.rds"))
 
 # plot
-ggplot(var.df, aes(missing.rate)) +
+p <- ggplot(var.df, aes(missing.rate)) +
     geom_histogram(binwidth=0.01, boundary=0)
-ggsave(paste0(argv$out_prefix, "missing_by_variant.pdf"))
+ggsave(paste0(argv$out_prefix, "missing_by_variant.pdf"), plot=p)
 
-ggplot(var.df, aes(maf)) +
+p <- ggplot(var.df, aes(maf)) +
     geom_histogram(binwidth=0.01, boundary=0)
-ggsave(paste0(argv$out_prefix, "maf.pdf"))
+ggsave(paste0(argv$out_prefix, "maf.pdf"), plot=p)
 
 seqClose(gds)
