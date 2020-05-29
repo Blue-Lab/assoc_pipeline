@@ -43,7 +43,17 @@ missingness to check sex.
 
 ### Variant QC
 
+#### Missing call rate and allele frequency
+
 [variant_qc.R](variant_qc.R)
+
+#### Hardy-Weinberg equilibrium
+
+When a dataset contains samples from multiple populations with
+different allele frequencies, it is recommended to run HWE in each
+population separately.
+
+[hwe.R](hwe.R)
 
 
 ## Relatedness
@@ -52,7 +62,6 @@ http://bioconductor.org/packages/release/bioc/vignettes/GENESIS/inst/doc/assoc_t
 
 
 1. [ld_pruning.R](ld_pruning.R)
-
 2. [pcs_and_grm.R](pcs_and_grm.R)
 
 As an additional QC step, compare pairwise relatedness estimates from
