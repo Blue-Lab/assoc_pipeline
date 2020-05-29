@@ -29,8 +29,11 @@ if (!is.na(argv$sample_id)) {
 }
 
 hw <- hwe(gds, parallel=argv$num_cores)
+saveRDS(hw, paste0(argv$out_prefix, "hwe.rds"))
 
 hw.perm <- hwe(gds, permute=TRUE, parallel=argv$num_cores)
+
+
 
 p <- data.frame(obs=sort(hw$p),
                 exp=sort(hw.perm$p)) %>%
