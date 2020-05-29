@@ -14,6 +14,7 @@ argp <- arg_parser("Generate PCs and GRM") %>%
   add_argument("--n_pcs", default = 3,
                "Number of PCs to pass to pcrelate") %>%
   add_argument("--keep_king", flag = TRUE, help = "Save KING-robust GRM")
+argv <- parse_args(argp)
 
 library(SeqArray)
 library(GENESIS)
@@ -23,7 +24,6 @@ library(SNPRelate)
 sessionInfo()
 print(argv)
 
-argv <- parse_args(argp)
 if (!is.na(argv$variant_id)) {
   variant_id <- readRDS(argv$variant_id)
 } else {
