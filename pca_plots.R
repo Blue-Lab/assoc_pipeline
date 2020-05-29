@@ -69,7 +69,3 @@ p <- ggparcoord(pc2, columns=1:n, groupColumn=group, alphaLines=0.5, scale="unim
     guides(colour=guide_legend(override.aes=list(alpha=1, size=2))) +
     xlab("PC") + ylab("")
 ggsave(paste0(out_prefix, "parcoord.png"), plot=p, width=10, height=5)
-
-# mem stats
-ms <- gc()
-cat(">>> Max memory: ", ms[1,6]+ms[2,6], " MB\n")
