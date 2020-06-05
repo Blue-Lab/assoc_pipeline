@@ -1,5 +1,8 @@
 #! /usr/bin/env Rscript
 library(argparser)
+msg <- "This script is defunct. Consider using the scripts king_grm.R," %>%
+  paste("pcair.R and pcrelate.R")
+warning(msg)
 library(magrittr)
 
 # read arguments
