@@ -60,7 +60,7 @@ print("1st iteration PC-relate")
 iterator <- SeqVarBlockIterator(seqData, verbose=FALSE)
 mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
                     training.set = mypcair$unrels)
-pcrelate_matrix <- pcrelateToMatrix(mypcrel, scaleKin=2, thresh = kin_thresh)
+pcrelate_matrix <- pcrelateToMatrix(mypcrel)
 
 pca <- pcair(seqData, kinobj = pcrelate_matrix, kin.thresh = kin_thresh,
              divobj = kingMat, snp.include = variant_id,
