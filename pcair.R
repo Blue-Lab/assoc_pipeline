@@ -37,7 +37,11 @@ kin <- readRDS(argv$kin_file)
 
 if (class(kin) == "snpgdsIBDClass") {
   mat <- kin$kinship
-} 
+} else if (class(kin) == "pcrelate") {
+  mat <- pcrelateToMatrix(kin, scaleKin = 2, thresh = argv$kin_thresh)
+} else {
+  stop("Expecting class(kin) to be in c('snpgdsIBDClass', 'pcrelate')")
+}
 
 mypcair <- pcair(gds, kinobj = mat, kin.thresh = argv$kin_thresh,
                  divobj = mat, snp.include = variant_id,
