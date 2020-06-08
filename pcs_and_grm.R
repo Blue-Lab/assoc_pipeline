@@ -69,7 +69,6 @@ pca <- pcair(seqData, kinobj = pcrelate_matrix, kin.thresh = kin_thresh,
 resetIterator(iterator, verbose = TRUE)
 
 print("2nd iteration PC-relate")
-iterator <- SeqVarBlockIterator(seqData, verbose = FALSE)
 pcrel2 <- pcrelate(iterator, pcs = pca$vectors[, seq(argv$n_pcs)],
                    training.set = pca$unrels)
 
