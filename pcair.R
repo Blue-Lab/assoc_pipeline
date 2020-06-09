@@ -4,13 +4,16 @@ library(magrittr)
 
 argp <- arg_parser("Run PC-AiR") %>%
   add_argument("gds_file", help = "GDS file") %>%
-  add_argument("kin_file", help = "Kinship matrix (KING or PC-Relate)") %>%
+  add_argument("kin_file", help = "Kinship matrix") %>%
+  add_argument("div_file", help = "") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
-  add_argument("--out_file", help = "output file name",
-               default = "pcair.rds") %>%
+  add_argument("--out_prefix", help = "Prefix for output files",
+               default = "") %>%
   add_argument("--kin_thresh", help = "Kinship threshold for pcair",
-               default = 0)
+               default = 2 ^ (-9 / 2)) %>%
+  add_argument("--div_thresh", help = "Divergence threshold for pcair",
+               default = -2 ^ (-9 / 2))
 
 argv <- parse_args(argp)
 
@@ -34,17 +37,11 @@ if (!is.na(argv$variant_id)) {
 }
 
 kin <- readRDS(argv$kin_file)
+div <- readRDS(argv$div_file)
 
-if (class(kin) == "snpgdsIBDClass") {
-  mat <- kin$kinship
-} else if (class(kin) == "pcrelate") {
-  mat <- pcrelateToMatrix(kin, scaleKin = 2, thresh = argv$kin_thresh)
-} else {
-  stop("Expecting class(kin) to be in c('snpgdsIBDClass', 'pcrelate')")
-}
 
-mypcair <- pcair(gds, kinobj = mat, kin.thresh = argv$kin_thresh,
-                 divobj = mat, snp.include = variant_id,
-                 sample.include = sample_id)
+mypcair <- pcair(gds, kinobj = kin, kin.thresh = argv$kin_thresh,
+                 divobj = div, snp.include = variant_id,
+                 sample.include = sample_id, div.thresh = argv$div_thresh)
 
-saveRDS(mypcair, argv$out_file)
+saveRDS(mypcair, paste0(argv$out_prefix, "pcair.rds"))
