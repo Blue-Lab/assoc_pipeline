@@ -14,7 +14,7 @@ argp <- arg_parser("Run PC-Relate") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
   add_argument("--scale_kin", help = "Scaling factor for GRM output",
                default = 1) %>%
-  add_argument("--sparse_thresh", help = st_help, default = 0) %>%
+  add_argument("--sparse_thresh", help = "st_help", default = 0) %>%
   add_argument("--scan_block_size", help = "pcrelate scan block size",
                default = 5000) %>%
   add_argument("--correct", "Flag to implement small-sample correction",
