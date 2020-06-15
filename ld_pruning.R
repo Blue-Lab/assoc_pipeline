@@ -27,6 +27,7 @@ variant.id <- if (!is.na(argv$variant_id)) readRDS(argv$variant_id) else NULL
 gds <- seqOpen(gds.file)
 
 # run LD pruning
+set.seed(10)
 snpset <- snpgdsLDpruning(gds,
                           sample.id = sample.id,
                           snp.id = variant.id,
