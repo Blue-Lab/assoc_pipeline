@@ -52,10 +52,10 @@ iterator <- SeqVarBlockIterator(seqData, verbose=FALSE,
                                 variantBlock = argv$variant_block)
 mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
                     training.set = mypcair$unrels, sample.include = sample_id,
-                    sample.block.size = argv$sample_block_size)
+                    sample.block.size = argv$sample_block_size,
+                    small.samp.correct = argv$small_samp_correct)
 
 saveRDS(mypcrel, paste0(argv$out_prefix, "pcrelate.rds"))
 pcr_mat <- pcrelateToMatrix(mypcrel, thresh = argv$sparse_thresh,
-                            scaleKin = argv$scale_kin,
-                            small.samp.correct = argv$small_samp_correct)
+                            scaleKin = argv$scale_kin)
 saveRDS(pcr_mat, paste0(argv$out_prefix, "pcr_mat.rds"))
