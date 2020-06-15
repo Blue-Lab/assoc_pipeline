@@ -50,7 +50,7 @@ seqSetFilter(gds, variant.id = variant_id, sample.id = sample_id)
 seqData <- SeqVarData(gds)
 iterator <- SeqVarBlockIterator(seqData, verbose=FALSE,
                                 variantBlock = argv$variant_block)
-mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
+mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs), drop = FALSE],
                     training.set = mypcair$unrels, sample.include = sample_id,
                     sample.block.size = argv$sample_block_size)
 
