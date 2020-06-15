@@ -2,7 +2,7 @@
 library(argparser)
 library(magrittr)
 
-st_help <- "Threshold for sparsifying GRM (will be multiplied by scale_kin)"
+
 argp <- arg_parser("Run PC-Relate") %>%
   add_argument("gds_file", help = "GDS file") %>%
   add_argument("pcair_file", help = "File with pcair object") %>%
@@ -14,10 +14,11 @@ argp <- arg_parser("Run PC-Relate") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
   add_argument("--scale_kin", help = "Scaling factor for GRM output",
                default = 1) %>%
-  add_argument("--sparse_thresh", help = st_help, default = 0) %>%
-  add_argument("--scan_block_size", help "pcrelate scan block size",
+  add_argument("--sparse_thresh", default = 0, "Threshold for sparsifying GRM (will be multiplied by scale_kin)") %>%
+  add_argument("--sample_block_size", help = "pcrelate sample block size",
                default = 5000) %>%
-  add_argument("--correct", "Flag to implement small-sample correction",
+  add_argument("--small_samp_correct",
+               "Flag to implement small-sample correction",
                flag = TRUE) %>%
   add_argument("--variant_block", help = "SeqVarBlaockIterator block size",
                default = 1024)
@@ -51,9 +52,10 @@ iterator <- SeqVarBlockIterator(seqData, verbose=FALSE,
                                 variantBlock = argv$variant_block)
 mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
                     training.set = mypcair$unrels, sample.include = sample_id,
-                    scan.block.size = argv$scan_block_size)
+                    sample.block.size = argv$sample_block_size)
 
 saveRDS(mypcrel, paste0(argv$out_prefix, "pcrelate.rds"))
 pcr_mat <- pcrelateToMatrix(mypcrel, thresh = argv$sparse_thresh,
-                            scaleKin = argv$scale_kin, correct = argv$correct)
+                            scaleKin = argv$scale_kin,
+                            small.samp.correct = argv$small_samp_correct)
 saveRDS(pcr_mat, paste0(argv$out_prefix, "pcr_mat.rds"))

@@ -2,15 +2,13 @@
 library(argparser)
 library(magrittr)
 
-nt_help <- "num.thread argument for snpgdsIBDKING (if NA, detect the number" %>%
-  paste("of cores automatically)")
 argp <- arg_parser("Run KING-robust") %>%
   add_argument("gds_file", help = "GDS file") %>%
   add_argument("--out_prefix", help = "Prefix for output files",
                default = "") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
-  add_argument("--num_thread", help = nt_help)
+  add_argument("--num_core", help = "num.thread argument for snpgdsIBDKING (if NA, detect the number of cores automatically)")
 argv <- parse_args(argp)
 
 sessionInfo()
@@ -34,7 +32,7 @@ if (!is.na(argv$variant_id)) {
 gds <- seqOpen(argv$gds_file)
 
 king <- snpgdsIBDKING(gds, snp.id = variant_id, sample.id = sample_id,
-                      type = "KING-robust", num.thread = argv$num_thread)
+                      type = "KING-robust", num.thread = argv$num_core)
 
 rownames(king$kinship) <- king$sample.id
 colnames(king$kinship) <- king$sample.id

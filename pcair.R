@@ -45,3 +45,6 @@ mypcair <- pcair(gds, kinobj = kin, kin.thresh = argv$kin_thresh,
                  sample.include = sample_id, div.thresh = argv$div_thresh)
 
 saveRDS(mypcair, paste0(argv$out_prefix, "pcair.rds"))
+saveRDS(mypcair$vectors, paste0(argv$out_prefix, "pcair_pcs.rds"))
+saveRDS(mypcair$unrels, paste0(argv$out_prefix, "pcair_unrels.rds"))
+saveRDS(mypcair$rels, paste0(argv$out_prefix, "pcair_rels.rds"))
