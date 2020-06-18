@@ -40,9 +40,10 @@ kin <- readRDS(argv$kin_file)
 div <- readRDS(argv$div_file)
 
 
-mypcair <- pcair(gds, kinobj = kin, kin.thresh = argv$kin_thresh,
+mypcair <- pcair(gds, kinobj = kin, kin.thresh = as.numeric(argv$kin_thresh),
                  divobj = div, snp.include = variant_id,
-                 sample.include = sample_id, div.thresh = argv$div_thresh)
+                 sample.include = sample_id,
+                 div.thresh = as.numeric(argv$div_thresh))
 
 saveRDS(mypcair, paste0(argv$out_prefix, "pcair.rds"))
 saveRDS(mypcair$vectors, paste0(argv$out_prefix, "pcair_pcs.rds"))

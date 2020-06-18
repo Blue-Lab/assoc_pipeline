@@ -32,7 +32,8 @@ if (!is.na(argv$variant_id)) {
 gds <- seqOpen(argv$gds_file)
 
 king <- snpgdsIBDKING(gds, snp.id = variant_id, sample.id = sample_id,
-                      type = "KING-robust", num.thread = argv$num_core)
+                      type = "KING-robust",
+                      num.thread = as.numeric(argv$num_core))
 
 rownames(king$kinship) <- king$sample.id
 colnames(king$kinship) <- king$sample.id
