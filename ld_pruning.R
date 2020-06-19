@@ -5,6 +5,7 @@ library(magrittr)
 # read arguments
 argp <- arg_parser("LD pruning") %>%
     add_argument("gds_file", help="GDS file") %>%
+    add_argument("--chromosome", help="chromosome") %>%
     add_argument("--out_file", help="output file name", default="pruned_snps.rds") %>%
     add_argument("--sample_id", help="RDS file with vector of sample.id to include") %>%
     add_argument("--variant_id", help="RDS file with vector of variant.id to include") %>%
@@ -30,6 +31,11 @@ variant.id <- if (!is.na(argv$variant_id)) readRDS(argv$variant_id) else NULL
 
 # open GDS file
 gds <- seqOpen(gds.file)
+
+# select chromosome
+if (!is.na(argv$chromosome)) {
+    seqSetFilterChrom(gds, include=argv$chromosome)
+}
 
 var.info <- variantInfo(gds, alleles=FALSE)
 if (!is.na(argv$variant_id)) {
