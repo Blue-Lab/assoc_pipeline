@@ -9,12 +9,13 @@ argp <- arg_parser("Run association test") %>%
   add_argument("outcome", help = "Outcome variable name") %>%
   add_argument("family", help = "Distribution family",
                default = "gaussian") %>%
-  add_argument("--out_file", help="output file name",
-               default = "assoc.rds") %>%
+  add_argument("--out_prefix", help="output file name",
+               default = "") %>%
   add_argument("--covars",
                help = "Covariate variable names (space-separated)") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
-  add_argument("--sample_id", help = "File with vector of sample IDs")
+  add_argument("--sample_id", help = "File with vector of sample IDs") %>%
+  add_argument("--chromosome", help = "chromosome number")
 
 argv <- parse_args(argp)
 
@@ -45,9 +46,12 @@ if (!is.na(argv$covars)) {
   covars <- NULL
 }
 
+print(paste("Chromosome:", chromsome))
+
 gds.id <- seqGetData(gds, "sample.id")
 seqData <- SeqVarData(gds, sampleData = pheno)
-seqSetFilter(gds, variant.id = variant_id, sample.id = sample_id)
+if (!ia.na(argv$chromosome) { seqSetFilterChrom(gds, chromosome) }
+seqSetFilter(gds, variant.id = variant_id, sample.id = sample_id, action = "intersect")
 iterator <- SeqVarBlockIterator(seqData, verbose=TRUE)
 
 grm <- readRDS(argv$grm_file)
@@ -60,5 +64,5 @@ message(nullmod$fixef)
 
 
 assoc <- assocTestSingle(iterator, nullmod)
-saveRDS(assoc, argv$out_file)
+saveRDS(assoc, paste0(argv$out_prefix, "assoc.rds"))
 seqClose(gds)
