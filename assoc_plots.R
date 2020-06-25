@@ -56,8 +56,7 @@ cmap <- setNames(rep_len(brewer.pal(8, "Dark2"), length(chr)), chr)
 ## genome-wide significance
 signif <- c(5e-8, 5e-9, 1e-9)
 
-p <- ggplot(assoc, aes(reorder(chr, sort(as.numeric(chr))),
-                       -log10(Score.pval), group=interaction(chr, pos), color=chr)) +
+p <- ggplot(assoc, aes(chr, -log10(Score.pval), group=interaction(chr, pos), color=chr)) +
     geom_point(position=position_dodge(0.8)) +
     scale_color_manual(values=cmap, breaks=names(cmap)) +
     geom_hline(yintercept=-log10(signif), linetype='dashed') +
