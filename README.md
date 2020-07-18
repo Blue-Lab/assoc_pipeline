@@ -6,6 +6,24 @@ commands and messages in your script.
 
 Required R packages: argparser, SeqArray, SeqVarTools, SNPRelate, GENESIS
 
+## Running with the PBS job scheduler
+
+From beluga1, use [runRscript.sh](runRscript.sh). Use the `-v` flag to
+pass the name of the R script (after `R=`) and any arguments to the
+script (after `args=`).
+
+```
+qsub -N jobname -v R="myscript.R",args="--arg1 arg1 --arg2 arg2" runRscript.sh
+```
+
+To run a script by chromosome, use the `-t` flag to submit each
+chromosome as a separate task in an array job.
+
+```
+qsub -N ld_pruning -v R="ld_pruning.R",args="--maf 0.01 --missing 0.01" -t 1-22 runRscript.sh
+```
+
+
 ## Convert to GDS
 
 Use the SeqArray package to convert files.
