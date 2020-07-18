@@ -14,7 +14,4 @@ else
     TASK="--chromosome $PBS_ARRAYID"
 fi
 
-#args=("$@") # all arguments
-#unset args[0] # remove first argument (R script name)
-
 R -q --vanilla --args ${args} $TASK < ${R}
