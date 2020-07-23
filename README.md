@@ -20,8 +20,17 @@ To run a script by chromosome, use the `-t` flag to submit each
 chromosome as a separate task in an array job.
 
 ```
-qsub -N ld_pruning -v R="ld_pruning.R",args="--maf 0.01 --missing 0.01" -t 1-22 runRscript.sh
+qsub -N ld_pruning -v R="/acct/sdmorris/code/assoc_pipeline/ld_pruning.R",args="myfile.gds --maf 0.01 --missing 0.01" -t 1-22 runRscript.sh
 ```
+
+To run a script in parallel, use the `-l` flag to request multiple
+processors on a node, in addition to the `--num_cores` argument to the
+R script.
+
+```
+qsub -N sample_qc -v R="/acct/sdmorris/code/assoc_pipeline/sample_qc.R",args="myfile.gds --num_cores 12" -l nodes=1:ppn=12 runRscript.sh
+```
+
 
 
 ## Convert to GDS
