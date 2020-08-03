@@ -37,9 +37,9 @@ ggsave(paste0(out_prefix, "pc_scree.png"), plot=p, width=6, height=6)
 if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
     group <- argv$group
     annot <- readRDS(argv$phenotype_file)
-    stopifnot(group %in% varLabels(annot))
-    annot <- pData(annot) %>%
-        select(sample.id, !!enquo(group))
+    if ("AnnotatedDataFrame" %in% class(annot)) annot %<>% pData()
+    stopifnot(group %in% names(annot))
+    annot %<>% select(sample.id, !!enquo(group))
     pcs <- left_join(pcs, annot, by="sample.id")
 } else {
     ## make up dummy group
