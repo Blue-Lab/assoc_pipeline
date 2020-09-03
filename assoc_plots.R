@@ -13,13 +13,13 @@ print(argv)
 library(dplyr)
 library(ggplot2)
 library(RColorBrewer)
-# Get pipeline directory
-initial.options <- commandArgs(trailingOnly = FALSE)
-file.arg.name <- "--file="
-script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
-script.basename <- dirname(script.name)
-# Source utils.R from pipeline directory
-file.path(script.basename, "utils.R") %>% source
+
+# Define function to calculate lambda
+calculateLambda <- function(stat, df) {
+    if (any(sum(stat < 0, na.rm=TRUE)))
+        stop("no negative values allowed in stat (does beta/se need to be squared?)")
+    median(stat, na.rm=TRUE) / qchisq(0.5, df=df)
+}
 
 assoc <- readRDS(argv$assoc_file)
 
