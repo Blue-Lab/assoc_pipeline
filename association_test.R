@@ -10,7 +10,8 @@ argp <- arg_parser("Run association test") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
   add_argument("--chromosome", help = "chromosome number") %>%
-  add_argument("--null_model", help = "null model object (.rds)")
+  add_argument("--null_model", help = "null model object (.rds)") %>%
+  add_argument("--dosage", help = "read dosage from DS node", flag = TRUE)
 
 
 argv <- parse_args(argp)
@@ -44,6 +45,6 @@ iterator <- SeqVarBlockIterator(seqData, verbose=TRUE)
 
 nullmod <- readRDS(argv$null_model)
 
-assoc <- assocTestSingle(iterator, nullmod)
+assoc <- assocTestSingle(iterator, nullmod, imputed=argv$dosage)
 saveRDS(assoc, argv$out_file)
 seqClose(gds)
