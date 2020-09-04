@@ -4,9 +4,9 @@ library(magrittr)
 argp <- arg_parser("Fit null model") %>%
   add_argument("pheno_file",
                help = "Phenotype file in annotated dataframe format") %>%
-  add_argument("grm_file", help = "GRM file") %>%
-  add_argument("outcome", help = "Outcome variable name") %>%
-  add_argument("family", help = "Distribution family",
+  add_argument("--grm_file", help = "GRM file") %>%
+  add_argument("--outcome", help = "Outcome variable name") %>%
+  add_argument("--family", help = "Distribution family",
                default = "gaussian") %>%
   add_argument("--out_file", help="output file name",
                default = "nullmod.rds") %>%
@@ -37,8 +37,12 @@ if (!is.na(argv$covars)) {
   covars <- NULL
 }
 
+if (!is.na(argv$grm_file)) {
+    grm <- readRDS(argv$grm_file)
+} else {
+    grm <- NULL
+}
 
-grm <- readRDS(argv$grm_file)
 nullmod <- fitNullModel(pheno, outcome = argv$outcome, covars = covars,
                         cov.mat = grm, family = argv$family, verbose=FALSE,
                         sample.id = sample_id)
