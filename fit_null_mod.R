@@ -11,7 +11,7 @@ argp <- arg_parser("Fit null model") %>%
   add_argument("--out_file", help="output file name",
                default = "nullmod.rds") %>%
   add_argument("--covars",
-               help = "Covariate variable names (space-separated)") %>%
+               help = "Covariate variable names (space-separated)", nargs=Inf) %>%
   add_argument("--sample_id", help = "File with vector of sample IDs")
 
 argv <- parse_args(argp)
@@ -31,9 +31,7 @@ if (!is.na(argv$sample_id)) {
   sample_id <- NULL
 }
 
-if (!is.na(argv$covars)) {
-  covars <- strsplit(argv$covars, " ") %>% unlist
-} else {
+if (is.na(argv$covars[1])) {
   covars <- NULL
 }
 
@@ -43,7 +41,7 @@ if (!is.na(argv$grm_file)) {
     grm <- NULL
 }
 
-nullmod <- fitNullModel(pheno, outcome = argv$outcome, covars = covars,
+nullmod <- fitNullModel(pheno, outcome = argv$outcome, covars = argv$covars,
                         cov.mat = grm, family = argv$family, verbose=FALSE,
                         sample.id = sample_id)
 
