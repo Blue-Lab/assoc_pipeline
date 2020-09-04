@@ -23,6 +23,15 @@ calculateLambda <- function(stat, df) {
 
 assoc <- readRDS(argv$assoc_file)
 
+#Re-order chromosomes to be in numerical order
+chrOrder <-c((1:22),"M","m","MT","mt","X","x","Y","y","XY","xy","23","24","0","NA")
+if(any(!(assoc$chr %in% chrOrder))){
+    stop("Error: unrecognized chromosome name")
+}
+assoc$chr <- factor(assoc$chr, chrOrder, ordered=TRUE)
+assoc <- assoc[!is.na(assoc$chr),]
+
+
 lambda <- calculateLambda((assoc$Score.Stat)^2, df=1)
 
 ## qq plot
@@ -45,6 +54,22 @@ p <- ggplot(dat, aes(-log10(exp), -log10(obs))) +
     theme(plot.title = element_text(size = 22))
 ggsave(paste0(argv$out_prefix, "qq.png"), plot=p, width=6, height=6)
 
+
+if(min(assoc$Score.pval) < 5e-10){
+p <- ggplot(dat, aes(-log10(exp), -log10(obs))) +
+    geom_line(aes(-log10(exp), -log10(upper)), color="gray") +
+    geom_line(aes(-log10(exp), -log10(lower)), color="gray") +
+    geom_point() +
+    geom_abline(intercept=0, slope=1, color="red") +
+    xlab(expression(paste(-log[10], "(expected P)"))) +
+    ylab(expression(paste(-log[10], "(observed P)"))) +
+    ylim(0, 10) +
+    ggtitle(paste("lambda =", format(lambda, digits=4, nsmall=3))) +
+    theme_bw() +
+    theme(plot.title = element_text(size = 22))
+ggsave(paste0(argv$out_prefix, "qq_truncated.png"), plot=p, width=6, height=6)
+}
+
 rm(dat)
 
 
@@ -65,3 +90,17 @@ p <- ggplot(assoc, aes(chr, -log10(Score.pval), group=interaction(chr, pos), col
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     xlab("chromosome") + ylab(expression(-log[10](p)))
 ggsave(paste0(argv$out_prefix, "mannh.png"), plot=p, width=10, height=5)
+
+
+if(min(assoc$Score.pval) < 5e-10){
+p <- ggplot(assoc, aes(chr, -log10(Score.pval), group=interaction(chr, pos), color=chr)) +
+    geom_point(position=position_dodge(0.8)) +
+    scale_color_manual(values=cmap, breaks=names(cmap)) +
+    geom_hline(yintercept=-log10(signif), linetype='dashed') +
+    ylim(0, 10) +
+    theme_bw() +
+    theme(legend.position="none") +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    xlab("chromosome") + ylab(expression(-log[10](p)))
+ggsave(paste0(argv$out_prefix, "mannh_truncated.png"), plot=p, width=10, height=5)
+}
