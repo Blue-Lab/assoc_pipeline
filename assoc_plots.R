@@ -49,7 +49,8 @@ rm(dat)
 
 
 ## manhattan plot
-chr <- as.factor(assoc$chr) %>% levels()
+assoc <- mutate(assoc, chr=factor(chr, levels=c(0:26,"X","XY","Y")))
+chr <- levels(droplevels(assoc$chr))
 cmap <- setNames(rep_len(brewer.pal(8, "Dark2"), length(chr)), chr)
 
 # significance level
