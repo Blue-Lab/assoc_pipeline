@@ -5,8 +5,7 @@ argp <- arg_parser("Run association test") %>%
   add_argument("gds_file", help = "GDS file") %>%
   add_argument("pheno_file",
                help = "Phenotype file in annotated dataframe format") %>%
-  add_argument("--out_file", help="output file name",
-               default = "assoc.rds") %>%
+  add_argument("--out_prefix", help = "Prefix for output files", default = "") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
   add_argument("--chromosome", help = "chromosome number") %>%
@@ -46,5 +45,11 @@ iterator <- SeqVarBlockIterator(seqData, verbose=TRUE)
 nullmod <- readRDS(argv$null_model)
 
 assoc <- assocTestSingle(iterator, nullmod, imputed=argv$dosage)
-saveRDS(assoc, argv$out_file)
+
+if (!is.na(argv$chromosome)) {
+    out_file <- paste0(argv$out_prefix, "assoc_chr", argv$chromosome, ".rds")
+} else {
+    out_file <- paste0(argv$out_prefix, "assoc.rds")
+}
+saveRDS(assoc, out_file)
 seqClose(gds)
