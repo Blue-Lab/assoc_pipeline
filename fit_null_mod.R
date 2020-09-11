@@ -32,7 +32,7 @@ if (!is.na(argv$sample_id)) {
 }
 
 if (is.na(argv$covars[1])) {
-  covars <- NULL
+  argv$covars <- NULL
 }
 
 if (!is.na(argv$grm_file)) {
