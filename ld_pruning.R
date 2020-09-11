@@ -6,7 +6,7 @@ library(magrittr)
 argp <- arg_parser("LD pruning") %>%
     add_argument("gds_file", help="GDS file") %>%
     add_argument("--chromosome", help="chromosome") %>%
-    add_argument("--out_file", help="output file name", default="pruned_snps.rds") %>%
+    add_argument("--out_prefix", help="Prefix for output files", default="") %>%
     add_argument("--sample_id", help="RDS file with vector of sample.id to include") %>%
     add_argument("--variant_id", help="RDS file with vector of variant.id to include") %>%
     add_argument("--maf", help="minimum MAF for variants to include", default=0.05) %>%
@@ -24,13 +24,11 @@ sessionInfo()
 print(argv)
 
 # parse file paths
-gds.file <- argv$gds_file
-out.file <- argv$out_file
 sample.id <- if (!is.na(argv$sample_id)) readRDS(argv$sample_id) else NULL
 variant.id <- if (!is.na(argv$variant_id)) readRDS(argv$variant_id) else NULL
 
 # open GDS file
-gds <- seqOpen(gds.file)
+gds <- seqOpen(argv$gds_file)
 
 # select chromosome
 if (!is.na(argv$chromosome)) {
@@ -63,10 +61,17 @@ snpset <- snpgdsLDpruning(gds,
                           maf = argv$maf,
                           missing.rate = argv$missing,
                           method = "corr",
-                          slide.max.bp = argv$window_size * 1e6, 
+                          slide.max.bp = argv$window_size * 1e6,
                           ld.threshold = argv$r_threshold)
 
 # convert list with one element per chrom to vector
 pruned <- unlist(snpset, use.names=FALSE)
 
-saveRDS(pruned, file=out.file)
+if (!is.na(argv$chromosome)) {
+    out_file <- paste0(argv$out_prefix, "pruned_snps_chr", argv$chromosome, ".rds")
+} else {
+    out_file <- paste0(argv$out_prefix, "pruned_snps.rds")
+}
+saveRDS(pruned, file=out_file)
+
+seqClose(gds)
