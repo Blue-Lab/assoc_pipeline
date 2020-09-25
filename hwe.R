@@ -14,6 +14,7 @@ argv <- parse_args(argp)
 # load libraries
 library(SeqArray)
 library(SeqVarTools)
+library(Biobase)
 library(ggplot2)
 
 # log versions and arguments for reproducibility
