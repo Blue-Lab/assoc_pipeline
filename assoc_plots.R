@@ -49,7 +49,8 @@ rm(dat)
 
 
 ## manhattan plot
-chr <- as.factor(assoc$chr) %>% levels()
+assoc <- mutate(assoc, chr=factor(chr, levels=c(0:26,"X","XY","Y")))
+chr <- levels(droplevels(assoc$chr))
 cmap <- setNames(rep_len(brewer.pal(8, "Dark2"), length(chr)), chr)
 
 # significance level
@@ -64,4 +65,4 @@ p <- ggplot(assoc, aes(chr, -log10(Score.pval), group=interaction(chr, pos), col
     theme(legend.position="none") +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     xlab("chromosome") + ylab(expression(-log[10](p)))
-ggsave(paste0(argv$out_prefix, "mannh.png"), plot=p, width=10, height=5)
+ggsave(paste0(argv$out_prefix, "manh.png"), plot=p, width=10, height=5)
