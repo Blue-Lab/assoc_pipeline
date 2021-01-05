@@ -24,7 +24,7 @@ pca <- readRDS(argv$pcair_file)
 pcs <- as.data.frame(pca$vectors[pca$unrels,])
 n <- ncol(pcs)
 names(pcs) <- paste0("PC", 1:n)
-pcs$sample.id <- row.names(pcs)
+pcs$sample.id <- as.integer(row.names(pcs))
 
 ## scree plot
 dat <- data.frame(pc = seq(n), varprop=pca$varprop[seq(n)])
