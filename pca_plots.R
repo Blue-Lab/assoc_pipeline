@@ -24,7 +24,7 @@ pca <- readRDS(argv$pcair_file)
 pcs <- as.data.frame(pca$vectors[pca$unrels,])
 n <- ncol(pcs)
 names(pcs) <- paste0("PC", 1:n)
-pcs$sample.id <- as.integer(row.names(pcs))
+pcs$sample.id <- row.names(pcs)
 
 ## scree plot
 dat <- data.frame(pc = seq(n), varprop=pca$varprop[seq(n)])
@@ -37,7 +37,6 @@ ggsave(paste0(out_prefix, "pc_scree.png"), plot=p, width=6, height=6)
 if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
     group <- argv$group
     annot <- readRDS(argv$phenotype_file)
-	 #pData(annot)$sample.id <- as.character(pData(annot)$sample.id)
     if ("AnnotatedDataFrame" %in% class(annot)) annot %<>% pData()
     stopifnot(group %in% names(annot))
     annot %<>% select(sample.id, !!enquo(group))
@@ -48,20 +47,14 @@ if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
     pcs$group <- "NA"
 }
 
-p12 <- ggplot(pcs, aes_string("PC1", "PC2", color=as.character(group))) + geom_point() +
+p <- ggplot(pcs, aes_string("PC1", "PC2", color=group)) + geom_point(alpha=0.5) +
     guides(colour=guide_legend(override.aes=list(alpha=1)))
-ggsave(paste0(out_prefix, "pc12.png"), plot=p12, width=7, height=6)
-
-
-p34 <- ggplot(pcs, aes_string("PC3", "PC4", color=as.character(group))) + geom_point() +
-    guides(colour=guide_legend(override.aes=list(alpha=1)))
-ggsave(paste0(out_prefix, "pc34.png"), plot=p34, width=7, height=6)
-
+ggsave(paste0(out_prefix, "pc12.png"), plot=p, width=7, height=6)
 
 
 npr <- min(argv$n_pairs, n)
-p <- ggpairs(pcs, mapping=aes_string(color=as.character(group)), columns=1:npr,
-             lower=list(continuous=wrap("points")),
+p <- ggpairs(pcs, mapping=aes_string(color=group), columns=1:npr,
+             lower=list(continuous=wrap("points", alpha=0.5)),
              diag=list(continuous="densityDiag"),
              upper=list(continuous="blank"))
 png(paste0(out_prefix, "pairs.png"), width=8, height=8, units="in", res=150)
@@ -72,7 +65,7 @@ dev.off()
 pc2 <- pcs
 names(pc2)[1:ncol(pc2)] <- sub("PC", "", names(pc2)[1:ncol(pc2)])
 
-p <- ggparcoord(pc2, columns=1:n, groupColumn=as.character(group), scale="uniminmax") +
-    guides(colour=guide_legend(override.aes=list(size=2))) +
+p <- ggparcoord(pc2, columns=1:n, groupColumn=group, alphaLines=0.5, scale="uniminmax") +
+    guides(colour=guide_legend(override.aes=list(alpha=1, size=2))) +
     xlab("PC") + ylab("")
 ggsave(paste0(out_prefix, "parcoord.png"), plot=p, width=10, height=5)
