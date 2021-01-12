@@ -42,7 +42,7 @@ if (!is.na(argv$group)) {
 png(argv$out_file)
 ggplot(kinship, aes_string(argv$x_axis, argv$y_axis, color = group)) +
     geom_hline(yintercept=2^(-seq(3,9,2)/2), linetype="dashed", color = "grey") +
-    geom_point(alpha=0.2) +
+    geom_point() +
     ylab("kinship estimate") +
     ggtitle("kinship")
 dev.off()
