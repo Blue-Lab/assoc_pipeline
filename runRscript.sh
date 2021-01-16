@@ -1,5 +1,5 @@
 #! /bin/bash
-
+echo hello world
 ### combine PBS standard output and error files
 #PBS -j oe
 #PBS -o $PBS_JOBNAME.o$PBS_JOBID
