@@ -13,10 +13,12 @@ argp <- arg_parser("coxmeg") %>%
     add_argument("--out_file", help="output file name",
                  default = "coxmeg.rds") %>%
     add_argument("--covars",
-                 help = "Covariate variable names (space-separated)", nargs=Inf) %>%
+                 help = "Covariate variable names (space-separated)", nargs = Inf) %>%
     add_argument("--sample_id", help = "File with vector of sample IDs") %>%
     add_argument("--variant_id", help = "File with vector of variant IDs") %>%
     add_argument("--maf", help = "minimum MAF of variants to test", default = 0.01) %>%
+    add_argument("--score", help = "perform score test", flag = TRUE) %>%
+    add_argument("--threshold", help = "reestimate HRs for variants with a p-value<threshold by first estimating a variant-specific variance component", default = 0) %>%
     add_argument("--chromosome", help = "chromosome number") %>%
 
 argv <- parse_args(argp)
@@ -24,7 +26,7 @@ argv <- parse_args(argp)
 library(SeqArray)
 library(Biobase)
 library(Matrix)
-library(coxmeg, lib.loc="~/R/x86_64-pc-linux-gnu-library/")
+library(coxmeg)
 library(dplyr)
 sessionInfo()
 print(argv)
@@ -63,7 +65,8 @@ if (!is.na(argv$variant_id)) {
 }
 
 res <- coxmeg_gds(gds=gds, pheno=pheno, corr=grm, type=argv$grm_type,
-                  cov=cov, maf=argv$maf, spd=argv$grm_spd)
+                  cov=cov, maf=argv$maf, score=argv$score,
+                  threshold=argv$threshold, spd=argv$grm_spd)
 
 saveRDS(res, file=argv$out_file)
 
