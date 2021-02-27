@@ -14,4 +14,4 @@ else
     TASK="--chromosome $PBS_ARRAYID"
 fi
 
-R -q --vanilla --args ${args} $TASK < ${R}
+/usr/bin/time -v R -q --vanilla --args ${args} $TASK < ${R}
