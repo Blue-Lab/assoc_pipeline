@@ -70,6 +70,6 @@ if (!is.na(argv$chromosome)) {
 } else {
     out_file <- paste0(argv$out_prefix, "coxmeg.rds")
 }
-saveRDS(res, file=$out_file)
+saveRDS(res, file=out_file)
 
 seqClose(gds)
