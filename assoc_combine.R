@@ -3,7 +3,7 @@ library(argparser)
 library(magrittr)
 
 argp <- arg_parser("Association plots") %>%
-argp <- add_argument("assoc_prefix",
+    add_argument("assoc_prefix",
                      help = "Prefix for association test results file (_chr*.rds)") %>%
     add_argument("--delete_indiv", help = "delete individual chromosome files", flag = TRUE)
 argv <- parse_args(argp)
