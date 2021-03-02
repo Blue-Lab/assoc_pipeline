@@ -1,5 +1,6 @@
 #! /usr/bin/env Rscript
 library(argparser)
+library(magrittr)
 
 argp <- arg_parser("Association plots") %>%
 argp <- add_argument("assoc_prefix",
@@ -7,9 +8,9 @@ argp <- add_argument("assoc_prefix",
     add_argument("--delete_indiv", help = "delete individual chromosome files", flag = TRUE)
 argv <- parse_args(argp)
 
+library(dplyr)
 sessionInfo()
 print(argv)
-library(dplyr)
 
 ## find all files and order by chromosome
 file.pattern <- paste0(basename(argv$assoc_prefix), "assoc_chr[[:alnum:]]+.rds")
