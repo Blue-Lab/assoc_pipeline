@@ -28,6 +28,16 @@ library(dplyr)
 sessionInfo()
 print(argv)
 
+intToChr <- function(chr) {
+    if (is.na(chr)) return(NA)
+    if (chr == 23) return("X")
+    if (chr == 24) return("Y")
+    if (chr == 25) return("XY")
+    if (chr == 26) return("MT")
+    as.character(chr)
+}
+chrom <- intToChr(argv$chromosome)
+
 phen <- readRDS(argv$pheno_file)
 phen_covars <- pData(phen) %>%
     mutate(family=sample.id)
@@ -54,7 +64,7 @@ grm <- grm[keep, keep]
 
 gds <- seqOpen(argv$gds_file)
 
-if (!is.na(argv$chromosome)) seqSetFilterChrom(gds, argv$chromosome)
+if (!is.na(chrom)) seqSetFilterChrom(gds, chrom)
 
 if (!is.na(argv$variant_id)) {
     variant_id <- readRDS(argv$variant_id)
@@ -65,8 +75,8 @@ res <- coxmeg_gds(gds=gds, pheno=pheno, corr=grm, type=argv$grm_type,
                   cov=cov, maf=argv$maf, score=argv$score,
                   threshold=argv$threshold, spd=argv$grm_spd)
 
-if (!is.na(argv$chromosome)) {
-    out_file <- paste0(argv$out_prefix, "coxmeg_chr", argv$chromosome, ".rds")
+if (!is.na(chrom)) {
+    out_file <- paste0(argv$out_prefix, "coxmeg_chr", chrom, ".rds")
 } else {
     out_file <- paste0(argv$out_prefix, "coxmeg.rds")
 }
