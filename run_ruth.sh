@@ -3,7 +3,7 @@
 # Set default args
 FIELD=GT
 
-while getopts ":p:d:P:o:g:D:k:v:s:n:f:" opt; do
+while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:" opt; do
   case ${opt} in
     p)
       PHENO_FILE=$OPTARG
@@ -33,10 +33,13 @@ while getopts ":p:d:P:o:g:D:k:v:s:n:f:" opt; do
       SAMPLE_ID=$OPTARG
       ;;
     n)
-      NUM_CORE=$OPTARG
+      N_PC=$OPTARG
       ;;
     f)
       FIELD=$OPTARG
+      ;;
+    N)
+      NUM_CORE=$OPTARG
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -58,7 +61,7 @@ plink --recode vcf bgz \
 ruth_format_pcs.R ${OUT_PREF}pcair_pcs.rds ${OUT_PREF}unrel_controls.txt --out_file ${OUT_PREF}ruth_pcs.txt
 
 ruth --vcf ${OUT_PREF}unrel_controls.vcf.gz --evec ${OUT_PREF}ruth_pcs.txt --out ${OUT_PREF}ruth.vcf \
-  --field $FIELD --site-only
+  --field $FIELD --site-only --num-pc $N_PC
 
 parse_ruth.R ${OUT_PREF}ruth.vcf --out_file ${OUT_PREF}ruth.rds
 
