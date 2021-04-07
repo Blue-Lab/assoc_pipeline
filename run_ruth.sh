@@ -2,8 +2,9 @@
 
 # Set default args
 FIELD=GT
+CLEANUP=false
 
-while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:" opt; do
+while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:c" opt; do
   case ${opt} in
     p)
       PHENO_FILE=$OPTARG
@@ -41,6 +42,9 @@ while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:" opt; do
     N)
       NUM_CORE=$OPTARG
       ;;
+    c)
+      CLEANUP=true
+      ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
       exit 1
@@ -48,7 +52,7 @@ while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:" opt; do
   esac
 done
 
-get_controls.R $PHENO_FILE $DX --out_prefix $OUT_PREF
+get_controls.R $PHENO_FILE $DX --out_file ${OUT_PREF}controls.rds
 
 pcair.R $GDS_FILE $DIV_OBJ $KIN_OBJ --variant_id $VARIANT_ID \
   --sample_id ${OUT_PREF}controls.rds --num_core $NUM_CORE --out_prefix $OUT_PREF
@@ -65,4 +69,7 @@ ruth --vcf ${OUT_PREF}unrel_controls.vcf.gz --evec ${OUT_PREF}ruth_pcs.txt --out
 
 parse_ruth.R ${OUT_PREF}ruth.vcf --out_file ${OUT_PREF}ruth.rds
 
-
+if [ "$CLEANUP" = true ] ; then
+  rm ${OUT_PREF}controls.rds ${OUT_PREF}unrel_controls* \
+    ${OUT_PREF}ruth_pcs.txt ${OUT_PREF}ruth.vcf ${OUT_PREF}pcair*
+fi

@@ -5,8 +5,7 @@ library(magrittr)
 argp <- arg_parser("Get IDs of controls") %>%
   add_argument("pheno_file", help="Phenotype file in annotated dataframe format (.rds)") %>%
   add_argument("status", help = "Case/control status variable in pheno_file (binary)") %>%
-  add_argument("--out_prefix", help = "Prefix for output files",
-               default = "") %>%
+  add_argument("--out_file", help = "Output filename", default = "controls.rds") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs to keep (.rds)")
 argv <- parse_args(argp)
 
@@ -27,5 +26,4 @@ if (!is.na(argv$sample_id)) {
   keep <- controls
 }
 
-
-paste0(argv$out_prefix, "controls.rds") %>% saveRDS(keep, .)
+saveRDS(keep, argv$out_file)
