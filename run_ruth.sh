@@ -8,46 +8,59 @@ HELP=false
 while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:ch" opt; do
   case ${opt} in
     p)
+      # Path to phenotype ADF in .rds format
       PHENO_FILE=$OPTARG
       ;;
     d)
+      # Name of DX variable in PHENO_FILE. Coded as 0/1.
       DX=$OPTARG
       ;;
     P)
+      # Path to PLINK .bim/.bam/.fam files (prefix only)
       PLINK_PREF=$OPTARG
       ;;
     o)
+      # Characters to prepend to output files
       OUT_PREF=$OPTARG
       ;;
     g)
+      # Path to GDS file
       GDS_FILE=$OPTARG
       ;;
     D)
+      # divobj for PC-AiR (.rds)
       DIV_OBJ=$OPTARG
       ;;
     k)
+      # kinobj for PC-AiR (.rds) 
       KIN_OBJ=$OPTARG
       ;;
     v)
+      # Vector of variant IDs to include (.rds)
       VARIANT_ID=$OPTARG
       ;;
-    s)
-      SAMPLE_ID=$OPTARG
-      ;;
     n)
+      # Number of PCs to include fo PC-AiR
       N_PC=$OPTARG
       ;;
     f)
+      # -GT option for RUTH
       FIELD=$OPTARG
       ;;
     N)
+      # Number of cores to use where it is an option.
       NUM_CORE=$OPTARG
       ;;
     c)
+      # Flag to delete intermediate files.
       CLEANUP=true
       ;;
     h)
-      HELP=true
+      # Flag to print the following message:
+      echo "\
+        This script uses the bash utility getopts to parse command line
+        options. For argument descriptions, check the \`while getopts\` section at 
+        the head of run_ruth.sh"
       ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
@@ -56,12 +69,6 @@ while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:ch" opt; do
   esac
 done
 
-if [ "$HELP" = true ] ; then
-  echo "\
-    This script uses the bash utility getopts to parse command line
-    options. For argument descriptions, check the \`while getopts\` section at 
-    the head of run_ruth.sh"
-fi
 get_controls.R $PHENO_FILE $DX --out_file ${OUT_PREF}controls.rds
 
 pcair.R $GDS_FILE $DIV_OBJ $KIN_OBJ --variant_id $VARIANT_ID \
