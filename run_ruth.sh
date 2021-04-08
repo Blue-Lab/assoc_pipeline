@@ -3,8 +3,9 @@
 # Set default args
 FIELD=GT
 CLEANUP=false
+HELP=false
 
-while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:c" opt; do
+while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:ch" opt; do
   case ${opt} in
     p)
       PHENO_FILE=$OPTARG
@@ -45,6 +46,9 @@ while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:c" opt; do
     c)
       CLEANUP=true
       ;;
+    h)
+      HELP=true
+      ;;
     \?)
       echo "Invalid option: -$OPTARG" >&2
       exit 1
@@ -52,6 +56,12 @@ while getopts ":p:d:P:o:g:D:k:v:s:n:f:N:c" opt; do
   esac
 done
 
+if [ "$HELP" = true ] ; then
+  echo "\
+    This script uses the bash utility getopts to parse command line
+    options. For argument descriptions, check the \`while getopts\` section at 
+    the head of run_ruth.sh"
+fi
 get_controls.R $PHENO_FILE $DX --out_file ${OUT_PREF}controls.rds
 
 pcair.R $GDS_FILE $DIV_OBJ $KIN_OBJ --variant_id $VARIANT_ID \
