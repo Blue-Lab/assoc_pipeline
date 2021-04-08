@@ -23,6 +23,6 @@ ruth_res <- read.table(argv$ruth_file, sep = "\t", comment.char = "#",
                     "MIN_IF", "LLK0", "BETA_IF")) %>%
   mutate(across(FIBC_P:BETA_IF, ~ sub("^.*=", "", .x))) %>%
   separate(BETA_IF, paste0("BETA_IF_", 1:5), ",") %>%
-  mutate(across(FIBC_P:BETA_IF_5, as.numeric))
+  mutate(across(FIBC_P:BETA_IF_5, as.numeric), ABS_PVAL = abs(HWE_SLP_I))
 
 saveRDS(ruth_res, argv$out_file)
