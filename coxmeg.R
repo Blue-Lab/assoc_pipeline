@@ -54,8 +54,12 @@ pheno <- phen_covars %>%
 if (is.na(argv$covars[1])) {
     cov <- NULL
 } else {
-    cov <- phen_covars %>%
+    x <- phen_covars %>%
         select(family, sample.id, one_of(argv$covars))
+    # categorical variables must be converted to dummy variables
+    model.formula <- as.formula(paste("~", paste(argv$covars, collapse="+")))
+    mm <- model.matrix(model.formula, data=x)
+    cov <- cbind(pheno[,1:2], mm[,-1])
 }
 
 grm <- readRDS(argv$grm_file)
