@@ -15,7 +15,8 @@ print(argv)
 library(dplyr)
 
 fam <- read.table(argv$fam_file)[,1:2] %>%
-  set_colnames(c("FID", "SAMPLE_ID"))
+  set_colnames(c("FID", "SAMPLE_ID")) %>%
+  mutate(across(.cols = everything(), as.character))
 
 pcair <- readRDS(argv$pc_file)
 pcs <- readRDS(argv$pc_file) %>%
