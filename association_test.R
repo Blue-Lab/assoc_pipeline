@@ -22,6 +22,16 @@ library(GENESIS)
 sessionInfo()
 print(argv)
 
+intToChr <- function(chr) {
+    if (is.na(chr)) return(NA)
+    if (chr == 23) return("X")
+    if (chr == 24) return("Y")
+    if (chr == 25) return("XY")
+    if (chr == 26) return("MT")
+    as.character(chr)
+}
+chrom <- intToChr(argv$chromosome)
+
 gds <- seqOpen(argv$gds_file)
 pheno <- readRDS(argv$pheno_file)
 
@@ -38,7 +48,7 @@ if (!is.na(argv$sample_id)) {
 
 gds.id <- seqGetData(gds, "sample.id")
 seqData <- SeqVarData(gds, sampleData = pheno)
-if (!is.na(argv$chromosome)) seqSetFilterChrom(gds, argv$chromosome)
+if (!is.na(chrom)) seqSetFilterChrom(gds, chrom)
 seqSetFilter(gds, variant.id = variant_id, sample.id = sample_id, action = "intersect")
 iterator <- SeqVarBlockIterator(seqData, verbose=TRUE)
 
@@ -46,8 +56,8 @@ nullmod <- readRDS(argv$null_model)
 
 assoc <- assocTestSingle(iterator, nullmod, imputed=argv$dosage)
 
-if (!is.na(argv$chromosome)) {
-    out_file <- paste0(argv$out_prefix, "assoc_chr", argv$chromosome, ".rds")
+if (!is.na(chrom)) {
+    out_file <- paste0(argv$out_prefix, "assoc_chr", chrom, ".rds")
 } else {
     out_file <- paste0(argv$out_prefix, "assoc.rds")
 }
