@@ -76,8 +76,8 @@ pcair.R $GDS_FILE $DIV_OBJ $KIN_OBJ --variant_id $VARIANT_ID \
 
 add_fid.R $PLINK_PREF ${OUT_PREF}pcair_unrels.rds --out_file ${OUT_PREF}unrel_controls.txt
 
-plink --recode vcf bgz \
-  --bfile $PLINK_PREF --keep ${OUT_PREF}unrel_controls.txt --out ${OUT_PREF}unrel_controls
+/acct/em27/programs/plink --recode vcf bgz \
+  --bfile $PLINK_PREF --keep ${OUT_PREF}unrel_controls.txt --out ${OUT_PREF}unrel_controls --noweb
 
 ruth_format_pcs.R ${OUT_PREF}pcair_pcs.rds ${OUT_PREF}unrel_controls.txt --out_file ${OUT_PREF}ruth_pcs.txt
 
