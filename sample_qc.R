@@ -10,10 +10,10 @@ argp <- arg_parser("Sample QC") %>%
   add_argument("--variant_id", help="File with vector of variant IDs") %>%
   add_argument("--num_cores", help="Number of cores to utilize for parallel processing", default=1) %>%
   add_argument("--img_ext", help="File extension for plot", default = "png") %>%
-  add_argument("--xmin", help = "X-axis lower limit") %>%
-  add_argument("--xmax", help = "X-axis upper limit") %>%
-  add_argument("--ymin", help = "Y-axis lower limit") %>%
-  add_argument("--ymax", help = "Y-axis upper limit")
+  add_argument("--xmin", help = "X-axis lower limit", type = "numeric") %>%
+  add_argument("--xmax", help = "X-axis upper limit", type = "numeric") %>%
+  add_argument("--ymin", help = "Y-axis lower limit", type = "numeric") %>%
+  add_argument("--ymax", help = "Y-axis upper limit", type = "numeric")
 argv <- parse_args(argp)
 
 # load libraries
@@ -44,7 +44,9 @@ saveRDS(miss.df, paste0(argv$out_prefix, "missing_by_sample.rds"))
 # plot
 p <- ggplot(miss.df, aes(missing.rate)) +
     geom_histogram(binwidth=0.01, boundary=0) +
-    lims(x = c(argv$xmin, argv$xmax), y = c(argv$ymin, argv$ymax))
+    # Need to coerce NAs to numeric because of ggplot2 bug:
+    lims(x = c(as.numeric(argv$xmin), as.numeric(argv$xmax)),
+         y = c(as.numeric(argv$ymin), as.numeric(argv$ymax)))
 
 ggsave(paste0(argv$out_prefix, "missing_by_sample.", argv$img_ext), plot=p)
 
