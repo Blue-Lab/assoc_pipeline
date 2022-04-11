@@ -8,6 +8,7 @@ argp <- arg_parser("Run KING-robust") %>%
                default = "") %>%
   add_argument("--variant_id", help = "File with vector of variant IDs") %>%
   add_argument("--sample_id", help = "File with vector of sample IDs") %>%
+  add_argument("--family_id", help = "File with vector of family IDs") %>%
   add_argument("--num_core", help = "num.thread argument for snpgdsIBDKING (if NA, detect the number of cores automatically)")
 argv <- parse_args(argp)
 
@@ -29,10 +30,16 @@ if (!is.na(argv$sample_id)) {
   sample_id <- NULL
 }
 
+if (!is.na(argv$family_id)) {
+  family_id <- readRDS(argv$family_id)
+} else {
+  family_id <- NULL
+}
+
 gds <- seqOpen(argv$gds_file)
 
 king <- snpgdsIBDKING(gds, snp.id = variant_id, sample.id = sample_id,
-                      type = "KING-robust",
+                      family.id = family_id, type = "KING-robust",
                       num.thread = as.numeric(argv$num_core))
 
 rownames(king$kinship) <- king$sample.id
