@@ -6,6 +6,7 @@ argp <- add_argument(argp, "assoc_file",
                      help = "Association test results file (.rds)")
 argp <- add_argument(argp, "--out_prefix", help = "Prefix for output files",
                      default = "")
+argp <- add_argument(argp, "--dense", flag = TRUE, help = "Flag to not apply sparsification to Manhattan plots")
 argv <- parse_args(argp)
 
 sessionInfo()
@@ -57,6 +58,13 @@ cmap <- setNames(rep_len(brewer.pal(8, "Dark2"), length(chr)), chr)
 ## genome-wide significance
 signif <- c(5e-8, 5e-9, 1e-9)
 
+if (!argv$dense & nrow(assoc) > 1e6) {
+  res_sparse_low <- filter(assoc, Score.pval < 0.1)
+  set.seed(1234)
+  res_sparse_high <- filter(assoc, Score.pval > 0.1) %>% sample_n(700000)
+  assoc <- rbind(res_sparse_low, res_sparse_high) %>% arrange(variant.id)
+  rm(res_sparse_high, res_sparse_low)
+}
 p <- ggplot(assoc, aes(chr, -log10(Score.pval), group=interaction(chr, pos), color=chr)) +
     geom_point(position=position_dodge(0.8)) +
     scale_color_manual(values=cmap, breaks=names(cmap)) +
