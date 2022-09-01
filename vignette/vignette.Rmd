@@ -212,7 +212,9 @@ outputs a vector of LD-pruned variant IDs `tmp/pruned_snps.rds`.
 **bash:**
 
 ```{bash}
-ld_pruning.R tmp/example.gds --out_prefix tmp/ \
+ld_pruning.R \
+  tmp/example.gds \
+  --out_prefix tmp/ \
   --variant_id tmp/vars_qc_keep.rds 
 ```
 
@@ -239,7 +241,10 @@ saveRDS(fam$FID, "tmp/fid_keep.rds")
 **bash:**
 
 ```{bash}
-king_grm.R tmp/example.gds --out_prefix tmp/ --variant_id tmp/pruned_snps.rds \
+king_grm.R \
+  tmp/example.gds \
+  --out_prefix tmp/ \
+  --variant_id tmp/pruned_snps.rds \
   --family_id tmp/fid_keep.rds
 ```
 
@@ -277,8 +282,13 @@ first iteration e.g. `tmp/a_pcair.rds`.
 **bash:**
 
 ```{bash}
-pcair.R tmp/example.gds tmp/king_grm.rds tmp/king_grm.rds \
-  --out_prefix tmp/a_ --variant_id tmp/pruned_snps.rds --num_core 12
+pcair.R \
+  tmp/example.gds \
+  tmp/king_grm.rds \
+  tmp/king_grm.rds \
+  --out_prefix tmp/a_ \
+  --variant_id tmp/pruned_snps.rds \
+  --num_core 12
 ```
 
 ## `pca_plots.R`
@@ -311,7 +321,11 @@ The phenotype annotated dataframe is now saved to disk and we pass it to
 **bash:**
 
 ```{bash}
-pca_plots.R tmp/a_pcair.rds --out_prefix fig/a_ --group Race --n_pairs 4 \
+pca_plots.R \
+  tmp/a_pcair.rds \
+  --out_prefix fig/a_ \
+  --group Race \
+  --n_pairs 4 \
   --phenotype_file tmp/convert_adf.rds
 ```
 
@@ -660,9 +674,14 @@ covariates in the Cox regression (sex, E2, E4, pc1 and pc2 in this example).
 **bash:**
 
 ```{bash}
-fit_null_mod.R tmp/pheno_adf.rds --grm_file tmp/b_pcr_mat.rds \
-  --sample_id tmp/samp.keep.rds --outcome martingale --family gaussian \
-  --out_file tmp/nullmod.rds --covars sex E2 E4 pc1 pc2 pc3
+fit_null_mod.R \
+  tmp/pheno_adf.rds \
+  --grm_file tmp/b_pcr_mat.rds \
+  --sample_id tmp/samp.keep.rds \
+  --outcome martingale \
+  --family gaussian \
+  --out_file tmp/nullmod.rds \
+  --covars sex E2 E4 pc1 pc2 pc3
 ```
 
 ## `association_test.R`
@@ -673,8 +692,12 @@ saves the output of `assocTestSingle()` to `tmp/assoc.rds`.
 **bash:**
 
 ```{bash}
-association_test.R tmp/example.gds tmp/pheno_adf.rds --out_prefix tmp/ \
-  --sample_id tmp/samp.keep.rds --variant_id tmp/vars_qc_keep.rds \
+association_test.R \
+  tmp/example.gds \
+  tmp/pheno_adf.rds \
+  --out_prefix tmp/ \
+  --sample_id tmp/samp.keep.rds \
+  --variant_id tmp/vars_qc_keep.rds \
   --null_model tmp/nullmod.rds
 ```
 
