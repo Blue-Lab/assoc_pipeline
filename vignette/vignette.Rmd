@@ -329,8 +329,13 @@ PCs.
 
 Now that we have PCs, we can use PC-Relate, our preferred method for creating
 the GRM.  PC-Relate is our preferred method because it adjusts for ancestry
-PCs, so the resulting GRM only represents recent relatedness. This script saves
-the following in the `tmp/` directory:
+PCs, so the resulting GRM only represents recent relatedness. The size of the
+GRM grows greatly as the number of samples increases. To reduce the GRM size
+and the computational requirements, consider using the optional
+`--sparse_thresh` argument.  A good starting threshold is fourth-degree
+relationships i.e. $2^{-11/2} \approx 0.022097$
+
+This script saves the following in the `tmp/` directory:
 
 1. `a_pcrelate.rds`, the full output from `pcrelate()`
 1. `a_pcr_mat.rds`, just the GRM
@@ -338,8 +343,13 @@ the following in the `tmp/` directory:
 **bash:**
 
 ```{bash}
-pcrelate.R tmp/example.gds tmp/a_pcair.rds --out_prefix tmp/a_ --n_pcs 3 \
-  --variant_id tmp/pruned_snps.rds
+pcrelate.R \
+  tmp/example.gds \
+  tmp/a_pcair.rds \
+  --out_prefix tmp/a_ \
+  --n_pcs 3 \
+  --variant_id tmp/pruned_snps.rds \
+  --sparse_thresh 0.022097
 ```
 
 ## `pcair.R` & `pcrelate.R`: second iteration
@@ -356,10 +366,22 @@ We'll use the prefix `b_` for the second iteration output.
 **bash:**
 
 ```{bash}
-pcair.R tmp/example.gds tmp/a_pcr_mat.rds tmp/king_grm.rds \
-  --out_prefix tmp/b_ --variant_id tmp/pruned_snps.rds --num_core 12
-pcrelate.R tmp/example.gds tmp/b_pcair.rds --out_prefix tmp/b_ \
-  --n_pcs 3 --variant_id tmp/pruned_snps.rds --scale_kin 2
+pcair.R \
+  tmp/example.gds \
+  tmp/a_pcr_mat.rds \
+  tmp/king_grm.rds \
+  --out_prefix tmp/b_ \
+  --variant_id tmp/pruned_snps.rds \
+  --num_core 12
+
+pcrelate.R \
+  tmp/example.gds \
+  tmp/b_pcair.rds \
+  --out_prefix tmp/b_ \
+  --n_pcs 3 \
+  --variant_id tmp/pruned_snps.rds \
+  --scale_kin 2 \
+  --sparse_thresh 0.022097
 ```
 
 If you want, you can remove the data files from the first iteration with the
