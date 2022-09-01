@@ -26,14 +26,12 @@ st <- Sys.time()
 This interactive Rmarkdown document makes use of the following packages:
 
 ```{r library, message = FALSE}
-library(dplyr)
 library(magrittr)
-library(Biobase)
-library(SeqVarTools)
 library(knitr)
-library(ggplot2)
-library(blPipeline)
 ```
+
+Additionally, when we use functions in other packages, we use the explicit
+`namespace::function()` syntax to clearly show when use other packages.
 
 ## Knitr chunk options
 
@@ -195,7 +193,7 @@ summary(varmet$maf)
 ...so we'll create a variant keep list, and save it in the `tmp/` directory:
 
 ```{r init_qc_keep}
-filter(varmet, missing.rate < 0.05, !(maf < 0.05 & maf > 0))$variant.id %>%
+dplyr::filter(varmet, missing.rate < 0.05, !(maf < 0.05 & maf > 0))$variant.id %>%
   saveRDS("tmp/vars_qc_keep.rds")
 ```
 
@@ -300,10 +298,10 @@ data_dir <- "/nfs/beluga0_home/DATA/NIAGADS/NG00020"
 pheno_dir <- "NG00020_LOAD_phenotype_files/NG00020_LOAD_phenotype/phenotype/"
 phen <- file.path(data_dir, pheno_dir, "2009_08_24_phenotype_data.csv") %>%
   read.csv(as.is = TRUE) %>%
-  mutate_at(vars(SUBJ_NO, Race), as.character)
+  dplyr::mutate_at(dplyr::vars(SUBJ_NO, Race), as.character)
 # pca_plots.R expects a variable named sample.id, so rename before writing to disk
-phen_adf <- rename(phen, sample.id = SUBJ_NO) %>%
-  AnnotatedDataFrame()
+phen_adf <- dplyr::rename(phen, sample.id = SUBJ_NO) %>%
+  Biobase::AnnotatedDataFrame()
 saveRDS(phen_adf, "tmp/convert_adf.rds")
 ```
 
@@ -388,9 +386,9 @@ the variables of interest.
 ```{r}
 phen.sub <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/pheno/out/pheno_adf.rds" %>%
   readRDS() %>%
-  pData() %>%
-  select(sample.id, Case_Control, SEX, Race, Hispanic, age, E2, E4) %>%
-  mutate(across(Case_Control, as.integer))
+  Biobase::pData() %>%
+  dplyr::select(sample.id, Case_Control, SEX, Race, Hispanic, age, E2, E4) %>%
+  dplyr::mutate(across(Case_Control, as.integer))
 ```
 
 ## Compare genetic and annotated sex
@@ -413,16 +411,16 @@ included here as well as the variable `sex` from the phenotype file (because
 despite what you might think, these don't always match...)
 
 ```{r read_sexchec}
-sexcheck <- read_sexcheck("tmp/plink.sexcheck") %>%
-  full_join(phen.sub, by = c(IID = "sample.id")) %>%
-  select(1:6, SEX)
+sexcheck <- blPipeline::read_sexcheck("tmp/plink.sexcheck") %>%
+  dplyr::full_join(phen.sub, by = c(IID = "sample.id")) %>%
+  dplyr::select(1:6, SEX)
 ```
 
 Let's first check that the coding in the .fam file matches the phenotype file
 (M=1, F=2)
 
 ```{r compare_fam_pheno}
-select(sexcheck, PEDSEX, SEX) %>% table(useNA = "ifany")
+dplyr::select(sexcheck, PEDSEX, SEX) %>% table(useNA = "ifany")
 ```
 
 We can divide these into two groups: samples where sex from the .fam file does
@@ -430,7 +428,7 @@ not match sex computed from the genotype, and samples where PLINK could not
 assess the sex of the sample.
 
 ```{r sexcheck_status}
-filter(sexcheck, STATUS == "PROBLEM")
+dplyr::filter(sexcheck, STATUS == "PROBLEM")
 ```
 
 Without extra information to determine why there's a mismatch, we'll filter
@@ -438,7 +436,7 @@ out samples where sex doesn't match. Creat a vector of IDs of samples and save
 it to disk.
 
 ```{r sex_mismatch}
-sex_mismatch <- filter(sexcheck, PEDSEX != SNPSEX, SNPSEX != 0)$IID
+sex_mismatch <- dplyr::filter(sexcheck, PEDSEX != SNPSEX, SNPSEX != 0)$IID
 saveRDS(sex_mismatch, "tmp/sex_mismatch.rds")
 ```
 
@@ -455,11 +453,11 @@ pcs <- readRDS("tmp/b_pcair_pcs.rds") %>%
 pcs$sample.id <- as.integer(rownames(pcs))
 rownames(pcs) <- NULL
 
-gds <- seqOpen("tmp/example.gds")
-gds.id <- seqGetData(gds, "sample.id")
+gds <- SeqArray::seqOpen("tmp/example.gds")
+gds.id <- SeqArray::seqGetData(gds, "sample.id")
 pheno <- phen.sub %>%
-  left_join(pcs, "sample.id") %>%
-  filter(sample.id %in% gds.id)
+  dplyr::left_join(pcs, "sample.id") %>%
+  dplyr::filter(sample.id %in% gds.id)
 pheno <- pheno[match(gds.id, pheno$sample.id), ]
 ```
 
@@ -468,11 +466,11 @@ pheno <- pheno[match(gds.id, pheno$sample.id), ]
 Now that the PCs are joined into the phenotype dataframe, we can run the Cox PH
 regression and calculate the residuals, which will be the phenotypes we'll
 pass to the null model. To do this, simply pass the phenotype dataframe and the
-names of the age, case status, and covariate variables to `blPipeline::make_resids()`.
+names of the age, case status, and covariate variables to `make_resids()`.
 
 ```{r make_resids}
 covars <- c("SEX", "E2", "E4", "pc1", "pc2", "pc3")
-pheno %<>% make_resids("age", "Case_Control", covars = covars)
+pheno %<>% blPipeline::make_resids("age", "Case_Control", covars = covars)
 ```
 
 ## Recoding categorical variables
@@ -483,18 +481,18 @@ more descriptive for plots.
 ```{r}
 dd <- file.path(data_dir, pheno_dir, "2009_07_24_data_dictionary.csv") %>%
   read.csv(as.is = TRUE)
-dd.sub <- filter(dd, VARNAME %in% names(phen.sub)) %>%
-    select(VARNAME, VARDESC, VALUES)
+dd.sub <- dplyr::filter(dd, VARNAME %in% names(phen.sub)) %>%
+    dplyr::select(VARNAME, VARDESC, VALUES)
 dd.sub
 
 pheno %<>%
-  mutate(
+  dplyr::mutate(
     SEX=c("1"="M", "2"="F")[as.character(SEX)],
     Race=c("1"="White", "2"="Black", "3"="AI_AN", "4"="Asian_PI", "50"="Other")[as.character(Race)],
     Hispanic=c("1"="yes", "2"="no")[as.character(Hispanic)]
   ) %>%
   # Make first variable sample ID
-  select(sample.id, everything())
+  dplyr::select(sample.id, everything())
 ```
 
 ## Preparing the data dictionary
@@ -531,21 +529,19 @@ dd.all <- dd.all[idx, ]
 ```
 
 ```{r}
-pheno_adf <- AnnotatedDataFrame(pheno)
+pheno_adf <- Biobase::AnnotatedDataFrame(pheno)
 meta <- setNames(dd.sub$VARDESC, dd.sub$VARNAME)
-varMetadata(pheno_adf)[names(meta), "labelDescription"] <- meta
+Biobase::varMetadata(pheno_adf)[names(meta), "labelDescription"] <- meta
 
 ## rename to match expected values for SeqVarTools
-varLabels(pheno_adf)[varLabels(pheno_adf) == "SEX"] <- "sex"
+Biobase::varLabels(pheno_adf)[Biobase::varLabels(pheno_adf) == "SEX"] <- "sex"
 
 ## check by constructing a SeqVarData object
-seqData <- SeqVarData(gds, pheno_adf)
+seqData <- SeqVarTools::SeqVarData(gds, pheno_adf)
 
 saveRDS(pheno_adf, "tmp/pheno_adf.rds")
-seqClose(gds)
+SeqArray::seqClose(gds)
 ```
-
-
 
 # Additional QC
 
@@ -624,7 +620,7 @@ let's create a keep list that excludes samples with mismatched sex.
 
 ```{r pheno_keep}
 sex_exclude <- readRDS("tmp/sex_mismatch.rds")
-samp.keep <- filter(pheno, !(sample.id %in% sex_exclude))$sample.id
+samp.keep <- dplyr::filter(pheno, !(sample.id %in% sex_exclude))$sample.id
 saveRDS(samp.keep, "tmp/samp.keep.rds")
 ```
 
