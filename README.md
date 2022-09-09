@@ -108,6 +108,7 @@ and CentOS8 machines with R version 4.0.5, with the following package versions:
 argparser\_0.7.1
 Biobase\_2.50.0
 BiocGenerics\_0.36.1
+coxmeg_1.0.13
 dplyr\_1.0.8
 GENESIS\_2.20.1
 gdsfmt\_1.26.1
@@ -115,6 +116,7 @@ GGally\_2.1.1
 ggplot2\_3.3.5
 magrittr\_2.0.2
 RColorBrewer\_1.1-2
+Rcpp_1.0.8.2
 SeqArray\_1.30.0
 SeqVarTools\_1.28.1
 SNPRelate\_1.24.0
