@@ -105,22 +105,46 @@ http://bioconductor.org/packages/release/bioc/vignettes/GENESIS/inst/doc/assoc_t
 This pipeline primarily uses R internally. It was built and tested on CentOS 7
 and CentOS8 machines with R version 4.0.5, with the following package versions:
 
-argparser\_0.7.1
+### Bioconductor
+
 Biobase\_2.50.0
 BiocGenerics\_0.36.1
-coxmeg_1.0.13
-dplyr\_1.0.8
 GENESIS\_2.20.1
 gdsfmt\_1.26.1
+SeqArray\_1.30.0
+SeqVarTools\_1.28.1
+SNPRelate\_1.24.0
+
+(See [here](https://www.bioconductor.org/install/) for Bioconductor
+installation instructions.)
+
+### CRAN
+
+argparser\_0.7.1
+coxmeg\_1.0.13
+dplyr\_1.0.8
 GGally\_2.1.1
 ggplot2\_3.3.5
 magrittr\_2.0.2
 RColorBrewer\_1.1-2
-Rcpp_1.0.8.2
-SeqArray\_1.30.0
-SeqVarTools\_1.28.1
-SNPRelate\_1.24.0
+Rcpp\_1.0.8.2
 tidyr\_1.2.0
 
 Additionally, this pipeline also has suggested dependencies PLINK v1.90b6.14
 64-bit and [RUTH](https://github.com/statgen/ruth) (November 2020 release).
+
+## Installation
+
+After installing the dependencies, on \*NIX systems, `git clone` this directory
+to your system. The scripts should be executable, so run them like:
+
+```bash
+/path/to/pipeline/script.R arg1 arg2
+```
+
+Or, add the directory to your `$PATH` environment variable and you can do
+instead:
+
+```bash
+script.R arg1 arg2
+```
