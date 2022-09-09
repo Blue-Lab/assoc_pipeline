@@ -219,15 +219,15 @@ approximately 97 minutes to run on an example dataset.
 It is common practice to LD prune variants before calculating PCs and GRMs.
 Here, we use the default LD threshold of $\sqrt{0.1}$. `ld_pruning.R` also can
 take keep lists with the `--variant_id` and `--sample_id` options. This script
-outputs a vector of LD-pruned variant IDs `tmp/pruned_snps.rds`.
+outputs a vector of LD-pruned variant IDs `out/pruned_snps.rds`.
 
 **bash:**
 
 ```{bash}
 ld_pruning.R \
   tmp/example.gds \
-  --out_prefix tmp/ \
-  --sample_id  tmp/all_missing_rm.rds \
+  --out_prefix out/ \
+  --sample_id  out/all_missing_rm.rds \
   --variant_id tmp/vars_qc_keep.rds 
 ```
 
@@ -259,8 +259,8 @@ saveRDS(fam$IID, "tmp/all_missing_rm.rds")
 ```{bash}
 king_grm.R \
   tmp/example.gds \
-  --out_prefix tmp/ \
-  --variant_id tmp/pruned_snps.rds \
+  --out_prefix out/ \
+  --variant_id out/pruned_snps.rds \
   --sample_id  tmp/all_missing_rm.rds \
   --family_id tmp/fid_keep.rds
 ```
@@ -273,7 +273,7 @@ relationships and make sure that that kinship and IBS0 values are consistent.
 **bash:**
 
 ```{bash}
-kinship_plot.R tmp/king_out.rds --is_king --out_file fig/kinship.png
+kinship_plot.R out/king_out.rds --is_king --out_file fig/kinship.png
 ```
 
 ```{r kinship_fig}
@@ -299,7 +299,7 @@ ped <- file.path(ped_dir, "2009_11_03_finalCompletePedigree.csv") %>%
 twins <- filter(ped, !(TWIN_ID %in%  c(".", ""))) %>%
   select(individ, TWIN_ID)
 
-king <- readRDS("tmp/king_out.rds") %>%
+king <- readRDS("out/king_out.rds") %>%
   SNPRelate::snpgdsIBDSelection() %>%
   mutate(obs.rel = case_when(
      kinship > cut.dup ~ "MZ",
@@ -357,7 +357,7 @@ mismatches_rm <- rowwise(mismatches) %>%
 select(mismatches_rm, rel.compare, obs.rel) %>% table()
 msm_rm_ids <- c(mismatches_rm$Individ1, mismatches_rm$Individ2) %>% unique()
 length(msm_rm_ids)
-saveRDS(all_missing_rm[!(all_missing_rm %in% msm_rm_ids)], "tmp/kinship_errors_rm.rds")
+saveRDS(all_missing_rm[!(all_missing_rm %in% msm_rm_ids)], "out/kinship_errors_rm.rds")
 ```
 
 ## `pcair.R`
@@ -384,8 +384,8 @@ pcair.R \
   tmp/king_grm.rds \
   tmp/king_grm.rds \
   --out_prefix tmp/a_ \
-  --variant_id tmp/pruned_snps.rds \
-  --sample_id  tmp/kinship_errors_rm.rds \
+  --variant_id out/pruned_snps.rds \
+  --sample_id  out/kinship_errors_rm.rds \
   --num_core 12
 ```
 
@@ -460,8 +460,8 @@ pcrelate.R \
   tmp/a_pcair.rds \
   --out_prefix tmp/a_ \
   --n_pcs 3 \
-  --variant_id tmp/pruned_snps.rds \
-  --sample_id  tmp/kinship_errors_rm.rds \
+  --variant_id out/pruned_snps.rds \
+  --sample_id  out/kinship_errors_rm.rds \
   --sparse_thresh 0.022097
 ```
 
@@ -484,8 +484,8 @@ pcair.R \
   tmp/a_pcr_mat.rds \
   tmp/king_grm.rds \
   --out_prefix tmp/b_ \
-  --variant_id tmp/pruned_snps.rds \
-  --sample_id  tmp/kinship_errors_rm.rds \
+  --variant_id out/pruned_snps.rds \
+  --sample_id  out/kinship_errors_rm.rds \
   --num_core 12
 
 pcrelate.R \
@@ -493,8 +493,8 @@ pcrelate.R \
   tmp/b_pcair.rds \
   --out_prefix tmp/b_ \
   --n_pcs 3 \
-  --variant_id tmp/pruned_snps.rds \
-  --sample_id  tmp/kinship_errors_rm.rds \
+  --variant_id out/pruned_snps.rds \
+  --sample_id  out/kinship_errors_rm.rds \
   --scale_kin 2 \
   --sparse_thresh 0.022097
 ```
@@ -721,7 +721,7 @@ In this example, the arguments are:
 -g tmp/example.gds: Genotype file in .gds format
 -D tmp/b_pcr_mat.rds: GRM to be used as div object
 -k tmp/king_grm.rds: GRM to be used as kin object
--v tmp/pruned_snps.rds: A vector of variant IDs to keep, in .rds format
+-v out/pruned_snps.rds: A vector of variant IDs to keep, in .rds format
 -n 3: Number of PCs to use when running RUTH
 -N 12: Number of cores to use
 -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub: PLINK .bed/.bim/.fam files
@@ -737,7 +737,7 @@ run_ruth.sh \
   -g tmp/example.gds \
   -D tmp/b_pcr_mat.rds \
   -k tmp/king_grm.rds \
-  -v tmp/pruned_snps.rds \
+  -v out/pruned_snps.rds \
   -n 3 \
   -N 12 \
   -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub
