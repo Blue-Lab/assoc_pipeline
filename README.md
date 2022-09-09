@@ -100,7 +100,7 @@ https://github.com/UW-GAC/analysis_pipeline/blob/master/R/pedigree_check.R
 
 http://bioconductor.org/packages/release/bioc/vignettes/GENESIS/inst/doc/assoc_test_seq.html#association-tests
 
-# Dependencies
+## Dependencies
 
 This pipeline primarily uses R internally. It was built and tested on CentOS 7
 and CentOS8 machines with R version 4.0.5, with the following package versions:
