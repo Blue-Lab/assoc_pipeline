@@ -1,0 +1,831 @@
+---
+title: 'Blue Lab Association Testing Pipeline Vignette'
+author: 'Jai Broome'
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    keep_md: true
+    toc: true
+    toc_depth: 3
+    number_sections: yes
+    code_folding: show
+---
+
+# Setup
+
+## Save start time
+
+This is used to calculate the amount of time needed to render this document.
+
+```{r st}
+st <- Sys.time()
+```
+
+## R Libraries
+
+This interactive Rmarkdown document makes use of the following packages:
+
+```{r library, message = FALSE}
+library(magrittr)
+library(ggplot2)
+library(knitr)
+library(dplyr)
+```
+
+Additionally, when we use functions in other packages, we use the explicit
+`namespace::function()` syntax to clearly show when use other packages.
+
+## Knitr chunk options
+
+The Blue Lab Association Pipeline is set up to be invoked from the \*NIX shell,
+bash in this example. Rmarkdown/knitr allow for executable chunks in different
+shells and programming languages, see the
+[knitr documentation](https://bookdown.org/yihui/rmarkdown/language-engines.html)
+for details.
+
+Specify the `-l` option for bash, see `man bash` for details. Executable chunks
+that use an engine _besides R_ will have a "**bash**" tag preceeding them.
+
+```{r bash_options}
+opts_chunk$set(engine.opts = list(bash = "-l"))
+```
+
+Specify that executed code and its output should be in the same chunk. This
+allows you to hide long output by clicking the "Hide" button.
+
+```{r collapse}
+opts_chunk$set(collapse = TRUE)
+```
+
+## Make subdirectories
+
+**bash:**
+
+```{bash}
+mkdir tmp fig
+# Clean up files from previous times this document may have been rendered
+# touch temporary files so script doesn't crash if directories are empty
+touch tmp/deleteme fig/deleteme
+rm tmp/* fig/*
+```
+
+## Note: piping with `magrittr`
+
+This document relies heavily on the pipe operators in the `magrittr` package,
+chiefly `%>%` and `%<>%`. Briefly,
+
+```
+foo <- x %>% bar() %>% baz()
+```
+
+is equivalent to
+
+```
+foo <- baz(bar(x))
+```
+
+and
+
+```
+foo %<>% bar()
+```
+
+is equivalent to
+
+```
+foo <- bar(foo)
+```
+
+See `vignette("magrittr")` for more.
+
+# GDS conversion
+
+This pipeline expects genotype data to be in GDS format, although many of our
+source data will be in a PLINK format (SNPRelate can also convert VCF to GDS).
+This vignette will use a subset of the `NG00020_plink` data that's been
+subsetted to a random 100,000 variants.  PLINK expects files grouped by a
+common name with different extensions.
+
+This step took approximately 15 minutes on an example dataset (not the
+subsetted dataset used in this dataset to speed up computation time).
+
+Pass the path and prefix of the bed/bim/fam files to `plink_to_gds.R`. 
+
+## `plink_to_gds.R`
+
+**bash:**
+
+```{bash}
+plink_to_gds.R \
+  /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub \
+  --out_file tmp/example.gds
+```
+
+# Preliminary QC
+
+Now that we have have the genetic data in GDS format, we can move onto the
+subsequent steps. Typically, we'll begin by calculating sample- and
+variant-level metrics.
+
+## `sample_qc.R`
+
+In the `tmp/` directory, this script will create `missing_by_sample.rds` and
+`missing_by_sample.png`. We'll move the figures to the `fig/` directory so
+`tmp/` can be removed at the end.
+
+**bash:**
+
+```{bash}
+sample_qc.R tmp/example.gds --out_prefix tmp/
+mkdir fig
+rm fig/*
+mv tmp/missing_by_sample.png fig
+```
+
+```{r rm-all-ms}
+ms_by_samp <- readRDS("tmp/missing_by_sample.rds")
+all_missing_rm <- filter(ms_by_samp, missing.rate < 1)$sample.id
+saveRDS(all_missing_rm, "tmp/all_missing_rm.rds")
+```
+
+Currently, the bin width is hardcoded in the pipleine script. Because all of
+the samples have missingness < 0.02, there are only two bins in this histogram:
+
+```{r sample_missing_fig}
+include_graphics("fig/missing_by_sample.png")
+```
+
+## `variant_qc.R`
+
+In the `tmp/` directory, this script will create `variant_metrics.rds` which
+includes variant missingness and MAF, `missing_by_variant.png` and `maf.png`.
+
+**bash:**
+
+```{bash}
+variant_qc.R \
+  tmp/example.gds \
+  --out_prefix tmp/ \
+  --sample_id  tmp/all_missing_rm.rds \
+  --ms_xmax 0.12
+mv tmp/*.png fig
+```
+
+```{r var_missing_fig}
+include_graphics("fig/missing_by_variant.png")
+```
+
+```{r maf_fig}
+include_graphics("fig/maf.png")
+```
+
+It's common to practice to filter variants and samples on missingness and MAF.
+Many scripts in the pipeline will take variant and sample indices for
+filtering the GDS before running. There is low missingness by sample, so we
+won't create a keep list for samples:
+
+```{r samp_qc}
+samp_qc <- readRDS("tmp/missing_by_sample.rds")
+summary(samp_qc$missing.rate)
+```
+
+There are variants with high missingness...
+
+```{r varmet}
+varmet <- readRDS("tmp/variant_metrics.rds")
+summary(varmet$missing.rate)
+```
+
+...as well as rare variants...
+
+```{r maf}
+summary(varmet$maf)
+```
+
+...so we'll create a variant keep list, and save it in the `tmp/` directory:
+
+```{r init_qc_keep}
+filter(varmet, missing.rate < 0.05, !(maf < 0.05 & maf > 0))$variant.id %>%
+  saveRDS("tmp/vars_qc_keep.rds")
+```
+
+# Relatedness and ancestry
+
+This is one of the most computationally intensive steps. It took
+approximately 97 minutes to run on an example dataset.
+
+## `ld_pruning.R`
+
+It is common practice to LD prune variants before calculating PCs and GRMs.
+Here, we use the default LD threshold of $\sqrt{0.1}$. `ld_pruning.R` also can
+take keep lists with the `--variant_id` and `--sample_id` options. This script
+outputs a vector of LD-pruned variant IDs `tmp/pruned_snps.rds`.
+
+**bash:**
+
+```{bash}
+ld_pruning.R \
+  tmp/example.gds \
+  --out_prefix tmp/ \
+  --sample_id  tmp/all_missing_rm.rds \
+  --variant_id tmp/vars_qc_keep.rds 
+```
+
+## `king_grm.R`
+
+The rest of steps will need a GRM. We use KING to generate initial estimates
+for relatedness. We supply a vector of sample- and variant-QC'd and LD pruned
+variants. This script outputs two RDS files in the `tmp/` directory:
+
+1. `king_out.rds`, the whole output from `snpgdsIBDKING()`, and
+1. `king_grm.rds`, just the GRM from the `snpgdsIBDKING()` output.
+
+KING calculates relatedness within and between families
+differently, so we create a vector of FIDs and save as a .rds object to pass
+to KING. See `?SNPRelate::snpgdsIBDKING` for details.
+
+```{r king_fids}
+fam <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub.fam" %>%
+  read.table(sep = " ", header = FALSE,
+             col.names = c("FID", "IID", "FATHER", "MOTHER", "SEX", "PHENOTYPE")) %>%
+  filter(IID %in% all_missing_rm)
+saveRDS(fam$FID, "tmp/fid_keep.rds")
+# Overwrite to make sure it's in the right order
+saveRDS(fam$IID, "tmp/all_missing_rm.rds")
+```
+
+**bash:**
+
+```{bash}
+king_grm.R \
+  tmp/example.gds \
+  --out_prefix tmp/ \
+  --variant_id tmp/pruned_snps.rds \
+  --sample_id  tmp/all_missing_rm.rds \
+  --family_id tmp/fid_keep.rds
+```
+
+## `kinship_plot.R`
+
+With the GRM we can compare the computed relationships to the known
+relationships and make sure that that kinship and IBS0 values are consistent.
+
+**bash:**
+
+```{bash}
+kinship_plot.R tmp/king_out.rds --is_king --out_file fig/kinship.png
+```
+
+```{r kinship_fig}
+include_graphics("fig/kinship.png")
+```
+
+## Check inferred vs known relationships
+
+```{r ped}
+cut.dup <- 1/(2^(3/2))
+cut.deg1 <- 1/(2^(5/2))
+cut.deg2 <- 1/(2^(7/2))
+cut.deg3 <- 1/(2^(9/2))
+cut.k0 <- 0.004
+
+ped_dir <- "/nfs/beluga0_home/DATA/NIAGADS/NG00020/NG00020_LOAD_phenotype_files/NG00020_LOAD_phenotype/phenotype"
+ped <- file.path(ped_dir, "2009_11_03_finalCompletePedigree.csv") %>%
+  read.csv(header = TRUE) %>%
+  # Match format required for pedigreeCheck()
+  rename(family = FAM_NO, individ = SUBJ_NO, mother = MOTHER,
+                father = FATHER, sex = SEX) %>%
+  mutate(across(sex, ~case_when(.x == 1 ~ "M", .x == 2 ~ "F", TRUE ~ NA_character_)))
+twins <- filter(ped, !(TWIN_ID %in%  c(".", ""))) %>%
+  select(individ, TWIN_ID)
+
+king <- readRDS("tmp/king_out.rds") %>%
+  SNPRelate::snpgdsIBDSelection() %>%
+  mutate(obs.rel = case_when(
+     kinship > cut.dup ~ "MZ",
+     kinship > cut.deg1 & IBS0 < cut.k0 ~ "PO",
+     kinship > cut.deg1 ~ "FS",
+     kinship > cut.deg2 ~ "Deg2",
+     kinship > cut.deg3 ~ "Deg3",
+     TRUE ~ "U"
+  ))
+
+chk <- GWASTools::pedigreeCheck(ped)
+rels <- filter(ped, !(family %in% chk$one.person.fams$family)) %>%
+  GWASTools::pedigreePairwiseRelatedness() %$%
+  relativeprs %>%
+  left_join(twins, c(Individ1 = "individ")) %>%
+  left_join(twins, c(Individ2 = "individ"), suffix = c("_1", "_2")) %>%
+  mutate(rel.compare = case_when(
+     relation == "PO" ~ "PO",
+     TWIN_ID_1 == TWIN_ID_2 ~ "MZ",
+     kinship > cut.deg1 ~ "FS",
+     kinship > cut.deg2 ~ "Deg2",
+     kinship > cut.deg3 ~ "Deg3",
+     TRUE ~ "U"
+    )) %>%
+  select(-matches("TWIN_ID"))
+
+kin_compare <- filter(rels, Individ1 %in% c(king$ID1, king$ID2),
+                             Individ2 %in% c(king$ID1, king$ID2)) %>%
+  full_join(king, c(Individ1 = "ID1", Individ2 = "ID2"), suffix = c(".ped", ".king")) %>%
+  mutate(across(rel.compare, ~ ifelse(is.na(.x), "U", .x)),
+                mismatch = rel.compare != obs.rel)
+
+select(kin_compare, rel.compare, obs.rel) %>%
+  table(useNA = "ifany") %>%
+  kable()
+g_kc_1 <- rowwise(kin_compare) %>%
+  filter(any(c(rel.compare, obs.rel) %in% c("PO", "FS", "Deg2", "MZ"))) %>%
+  ggplot(aes(x = IBS0, y = kinship.king, color = rel.compare)) +
+  geom_point()
+g_kc_1
+g_kc_2 <- filter(kin_compare, mismatch) %>%
+  ggplot(aes(x = IBS0, y = kinship.king, color = rel.compare)) +
+  geom_point()
+g_kc_2
+```
+
+Exclude detected mismatch relationships.
+
+```{r exlude-rels-mismatch}
+mismatches <- filter(kin_compare, mismatch)
+mismatches_rm <- rowwise(mismatches) %>%
+  filter(!all(c(rel.compare, obs.rel) %in% c("Deg2", "Deg3", "U")),
+         !all(c(rel.compare, obs.rel) %in% c("FS", "Deg2")))
+
+select(mismatches_rm, rel.compare, obs.rel) %>% table()
+msm_rm_ids <- c(mismatches_rm$Individ1, mismatches_rm$Individ2) %>% unique()
+length(msm_rm_ids)
+saveRDS(all_missing_rm[!(all_missing_rm %in% msm_rm_ids)], "tmp/kinship_errors_rm.rds")
+```
+
+## `pcair.R`
+
+We won't use the KING GRM for association testing, but it does allows us to
+select an unrelated sample set for PCA. Here we use the default kinship and
+divergence thresholds of $2^{-9/2}$ and $-2^{-9/2}$, respectively.
+
+This script saves several outputs from `pcair()`:
+
+1. `pcair.rds`, the whole output
+1. `pcair_pcs.rds`, just the principle components
+1. `pcair_rels.rds`, a vector of sample IDs of related individuals
+1. `pcair_unrels.rds`, a vector of sample IDs of _unrelated_ individuals
+
+These are saved to disk in the `tmp/` directory, with the prefix `a_` for the
+first iteration e.g. `tmp/a_pcair.rds`.
+
+**bash:**
+
+```{bash}
+pcair.R \
+  tmp/example.gds \
+  tmp/king_grm.rds \
+  tmp/king_grm.rds \
+  --out_prefix tmp/a_ \
+  --variant_id tmp/pruned_snps.rds \
+  --sample_id  tmp/kinship_errors_rm.rds \
+  --num_core 12
+```
+
+## `pca_plots.R`
+
+PC-Relate requires us to specify the number of principal components to use.
+Two common ways to determine how many is to look at the pair-wise scatterplots
+and see which PCs seem to be separating known populations groups; and looking
+at the percent of the variance explained by each PC.
+
+To compare ancestry groups that appear in PC space to self-reported race or ancestry,
+`pca_plots.R` can take a phenotype annotated dataframe in .rds format. We create
+one here from the data downloaded from NIAGADS. We'll save the preparation of
+the final phenotype file for when we have PCs from the second iteration of PC-AiR.
+
+```{r pca-adf}
+data_dir <- "/nfs/beluga0_home/DATA/NIAGADS/NG00020"
+pheno_dir <- "NG00020_LOAD_phenotype_files/NG00020_LOAD_phenotype/phenotype/"
+phen <- file.path(data_dir, pheno_dir, "2009_08_24_phenotype_data.csv") %>%
+  read.csv(as.is = TRUE) %>%
+  mutate_at(vars(SUBJ_NO, Race), as.character)
+# pca_plots.R expects a variable named sample.id, so rename before writing to disk
+phen_adf <- rename(phen, sample.id = SUBJ_NO) %>%
+  Biobase::AnnotatedDataFrame()
+saveRDS(phen_adf, "tmp/convert_adf.rds")
+```
+
+The phenotype annotated dataframe is now saved to disk and we pass it to
+`pca_plots.R`.
+
+**bash:**
+
+```{bash}
+pca_plots.R \
+  tmp/a_pcair.rds \
+  --out_prefix fig/a_ \
+  --group Race \
+  --n_pairs 4 \
+  --phenotype_file tmp/convert_adf.rds
+```
+
+```{r pca_figs}
+include_graphics(c("fig/a_pairs.png", "fig/a_pc_scree.png"))
+```
+
+The pairwise plots turn into clouds after about the third PC and PCs 4 and
+greater account for almost no variance, so we'll use 3 for the rest of our
+steps. Note that for other analyses that did not subset this dataset to a
+random 100,000 variants, we saw population structure in the third and fourth
+PCs.
+
+## `pcrelate.R`
+
+Now that we have PCs, we can use PC-Relate, our preferred method for creating
+the GRM.  PC-Relate is our preferred method because it adjusts for ancestry
+PCs, so the resulting GRM only represents recent relatedness. The size of the
+GRM grows greatly as the number of samples increases. To reduce the GRM size
+and the computational requirements, consider using the optional
+`--sparse_thresh` argument.  A good starting threshold is fourth-degree
+relationships i.e. $2^{-11/2} \approx 0.022097$
+
+This script saves the following in the `tmp/` directory:
+
+1. `a_pcrelate.rds`, the full output from `pcrelate()`
+1. `a_pcr_mat.rds`, just the GRM
+
+**bash:**
+
+```{bash}
+pcrelate.R \
+  tmp/example.gds \
+  tmp/a_pcair.rds \
+  --out_prefix tmp/a_ \
+  --n_pcs 3 \
+  --variant_id tmp/pruned_snps.rds \
+  --sample_id  tmp/kinship_errors_rm.rds \
+  --sparse_thresh 0.022097
+```
+
+## `pcair.R` & `pcrelate.R`: second iteration
+
+Our standard approach is to do two iterations of PC-AiR and PC-Relate. Note two
+important differences in the second iteration:
+
+  1. `pcair.R` now takes the PC-Relate matrix as the `kin_file`, but _still
+     uses the KING GRM for the_ `div_file`.
+  1. `pcrelate.R` needs the `--scale_kin 2` option.
+
+We'll use the prefix `b_` for the second iteration output.
+
+**bash:**
+
+```{bash}
+pcair.R \
+  tmp/example.gds \
+  tmp/a_pcr_mat.rds \
+  tmp/king_grm.rds \
+  --out_prefix tmp/b_ \
+  --variant_id tmp/pruned_snps.rds \
+  --sample_id  tmp/kinship_errors_rm.rds \
+  --num_core 12
+
+pcrelate.R \
+  tmp/example.gds \
+  tmp/b_pcair.rds \
+  --out_prefix tmp/b_ \
+  --n_pcs 3 \
+  --variant_id tmp/pruned_snps.rds \
+  --sample_id  tmp/kinship_errors_rm.rds \
+  --scale_kin 2 \
+  --sparse_thresh 0.022097
+```
+
+If you want, you can remove the data files from the first iteration with the
+"a\_" prefix. Make sure to not delete any figures you might want to keep.
+
+**bash:**
+
+```{bash}
+rm tmp/a_*
+```
+
+# Phenotype preparation
+
+This will be one of the hardest steps to automate and generally requires
+hands-on manipulation of the data. In this example, we had to do a lot of work
+to define an age variable for cases and controls. For that reason, here we start
+with a phenotype file that's already had a lot of QC done on it. For a full
+explanation, see
+`/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/pheno/pheno_qc.html`.
+
+To set things up for this vignette, we read in the phenotype file and select
+the variables of interest.
+
+```{r phen-sub}
+phen.sub <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/pheno/out/pheno_adf.rds" %>%
+  readRDS() %>%
+  Biobase::pData() %>%
+  select(sample.id, Case_Control, SEX, Race, Hispanic, age, E2, E4) %>%
+  mutate(across(Case_Control, as.integer))
+```
+
+## Compare genetic and annotated sex
+
+Sex mismatches often indicate sample swaps. Using the original PLINK files,
+run the sex check:
+
+**bash:**
+
+```{bash}
+plink \
+  --bfile /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub \
+  --out tmp/plink --noweb --check-sex
+```
+
+Use the helper function `blPipeline::read_sexcheck()` to read the PLINK output.
+Join it to the phenotype to compare calculated and expected sex. Note that the
+sexcheck output includes `PEDSEX`, which comes from the .fam file. This is
+included here as well as the variable `sex` from the phenotype file (because
+despite what you might think, these don't always match...)
+
+```{r read_sexchec}
+sexcheck <- blPipeline::read_sexcheck("tmp/plink.sexcheck") %>%
+  full_join(phen.sub, by = c(IID = "sample.id")) %>%
+  select(1:6, SEX)
+```
+
+Let's first check that the coding in the .fam file matches the phenotype file
+(M=1, F=2)
+
+```{r compare_fam_pheno}
+select(sexcheck, PEDSEX, SEX) %>% table(useNA = "ifany")
+```
+
+We can divide these into two groups: samples where sex from the .fam file does
+not match sex computed from the genotype, and samples where PLINK could not
+assess the sex of the sample.
+
+```{r sexcheck_status}
+filter(sexcheck, STATUS == "PROBLEM")
+```
+
+Without extra information to determine why there's a mismatch, we'll filter
+out samples where sex doesn't match. Creat a vector of IDs of samples and save
+it to disk.
+
+```{r sex_mismatch}
+sex_mismatch <- filter(sexcheck, PEDSEX != SNPSEX, SNPSEX != 0)$IID
+saveRDS(sex_mismatch, "tmp/sex_mismatch.rds")
+```
+
+## Join PCs
+
+We join the PCs with the phenotype data before making sure the ID order 
+in the phenotype object is identical to the GDS ids (make sure they're both of
+the same type, integer in this example).
+
+```{r join-pcs}
+pcs <- readRDS("tmp/b_pcair_pcs.rds") %>%
+  as.data.frame() %>%
+  set_colnames(paste0("pc", 1:32))
+pcs$sample.id <- as.integer(rownames(pcs))
+rownames(pcs) <- NULL
+
+gds <- SeqArray::seqOpen("tmp/example.gds")
+gds.id <- SeqArray::seqGetData(gds, "sample.id")
+pheno <- left_join(phen.sub, pcs, "sample.id") %>%
+  filter(sample.id %in% gds.id)
+id_not_in_pheno <- gds.id[!(gds.id %in% pheno$sample.id)]
+pheno %<>% bind_rows(data.frame(sample.id = id_not_in_pheno))
+pheno <- pheno[match(gds.id, pheno$sample.id), ]
+```
+
+## Run Cox PH regression
+
+Now that the PCs are joined into the phenotype dataframe, we can run the Cox PH
+regression and calculate the residuals, which will be the phenotypes we'll
+pass to the null model. To do this, simply pass the phenotype dataframe and the
+names of the age, case status, and covariate variables to `make_resids()`.
+
+```{r make_resids}
+covars <- c("SEX", "E2", "E4", "pc1", "pc2", "pc3")
+pheno %<>% blPipeline::make_resids("age", "Case_Control", covars = covars)
+```
+
+## Recoding categorical variables
+
+We'll use the data dictionary to recode some categorical variables to make them
+more descriptive for plots.
+
+```{r dd}
+dd <- file.path(data_dir, pheno_dir, "2009_07_24_data_dictionary.csv") %>%
+  read.csv(as.is = TRUE)
+dd.sub <- filter(dd, VARNAME %in% names(phen.sub)) %>%
+    select(VARNAME, VARDESC, VALUES)
+
+pheno %<>%
+  mutate(
+    SEX=c("1"="M", "2"="F")[as.character(SEX)],
+    Race=c("1"="White", "2"="Black", "3"="AI_AN", "4"="Asian_PI", "50"="Other")[as.character(Race)],
+    Hispanic=c("1"="yes", "2"="no")[as.character(Hispanic)]
+  ) %>%
+  # Make first variable sample ID
+  select(sample.id, everything())
+```
+
+## Preparing the data dictionary
+
+We will turn this into an AnnotatedDataFrame using the metadata from
+the data dictionary. First, though, we've added some new variables that need the
+metadata defined
+
+```{r reorder-dd} 
+names(pheno)[!(names(pheno) %in% dd.sub$VARNAME)]
+```
+
+```{r dd.other}
+dd.other <- rbind(
+  data.frame(VARNAME = "sample.id", VARDESC = "Sample ID", VALUES = NA),
+  c("age", "Subject's age", NA),
+  c("E2", "APOE E2 allele count", NA),
+  c("E4", "APOE E4 allele count", NA),
+  c("surv", "Surv object for use in the survival package", NA),
+  c("martingale", "Martingale residuals from a Cox PH regression", NA),
+  c("devres", "Devience residuals from a Cox PH regression", NA)
+)
+
+dd.pcs <- data.frame(
+  VARNAME = paste0("pc", 1:32),
+  VARDESC = sprintf("Principle component %s from PC-AiR (second iteration)", 1:32),
+  VALUES = NA
+)
+
+# Reorder to match phenotype variable order.
+dd.all <- rbind(dd.sub, dd.other, dd.pcs)
+idx <- match(names(pheno), dd.all$VARNAME)
+dd.all <- dd.all[idx, ]
+```
+
+```{r adf.out}
+pheno_adf <- Biobase::AnnotatedDataFrame(pheno)
+meta <- setNames(dd.sub$VARDESC, dd.sub$VARNAME)
+Biobase::varMetadata(pheno_adf)[names(meta), "labelDescription"] <- meta
+
+## rename to match expected values for SeqVarTools
+Biobase::varLabels(pheno_adf)[Biobase::varLabels(pheno_adf) == "SEX"] <- "sex"
+
+## check by constructing a SeqVarData object
+seqData <- SeqVarTools::SeqVarData(gds, pheno_adf)
+
+saveRDS(pheno_adf, "tmp/pheno_adf.rds")
+SeqArray::seqClose(gds)
+```
+
+# Additional QC
+
+## HWE
+
+Deviations from Hardy-Weinberg equilbrium (HWE) can be due to genotyping
+errors, but can also be caused by family or population structure, or even by
+case-control differences in the exact variants we are trying to detect in GWAS.
+It is importont to control for these factors when testing HWE (see
+[Laurie et al 2010](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3061487/)).
+
+### `run_ruth.sh`
+
+Our preferred method is RUTH, which can calculate HWE on a set of diverse
+samples by adjusting for principle components. Users can do this manually with
+the `ruth.R` script, but can also use the wrapper script `run_ruth.sh` to:
+
+1. Get a vector of control sample IDs from a phenotype file
+1. Run PC-AiR to calculate a set of unrelateds _from the controls_
+1. Concatenate FID and sample ID
+1. Create a VCF subset of just the unrelated controls from PLINK .bed/.bim/.fam
+   files. This step is currently recquired because to option to restrict RUTH
+   to a subset of samples is not yet implemented.
+1. Format PC-AiR PCs into a RUTH-compatible format
+1. Run RUTH
+1. Parse the RUTH output (VCF) into a tabular R object
+
+`run_ruth.sh` is a bash script that uses getopts to parse command-line options.
+There is not an auto-generated help command like there is for the R scripts in
+this pipeline, but see the `while getopts` section at the top of the script
+for a description of the options. For this example, I have also included a
+description for each option explaining what they are.
+
+In this example, the arguments are:
+
+```
+-p tmp/pheno_adf.rds: Phenotype annotated dataframe in .rds format
+-d Case_Control: Case/control or dx variable in phenotype file
+-o tmp/: Prefix for output files
+-g tmp/example.gds: Genotype file in .gds format
+-D tmp/b_pcr_mat.rds: GRM to be used as div object
+-k tmp/king_grm.rds: GRM to be used as kin object
+-v tmp/pruned_snps.rds: A vector of variant IDs to keep, in .rds format
+-n 3: Number of PCs to use when running RUTH
+-N 12: Number of cores to use
+-P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub: PLINK .bed/.bim/.fam files
+```
+
+**bash:**
+
+```{bash}
+run_ruth.sh \
+  -p tmp/pheno_adf.rds \
+  -d Case_Control \
+  -o tmp/ \
+  -g tmp/example.gds \
+  -D tmp/b_pcr_mat.rds \
+  -k tmp/king_grm.rds \
+  -v tmp/pruned_snps.rds \
+  -n 3 \
+  -N 12 \
+  -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub
+```
+
+# Null model and association testing
+
+Running the actual analysis is broken into two steps: fitting the null model,
+and running association testing. This is also a computationally intensive step.
+It took approximately 94 minutes to run on an example dataset.
+
+## Create sample and/or variant keep list
+
+First, we'll need to create keep lists from our previous QC steps. We can use
+`tmp/vars_qc_keep.rds` that we've already used for the variant keep list, but
+let's create a keep list that excludes samples with mismatched sex and
+relationships.
+
+```{r pheno_keep}
+sex_exclude <- readRDS("tmp/sex_mismatch.rds")
+samp.keep <- filter(pheno, !(sample.id %in% c(sex_exclude, msm_rm_ids)))$sample.id
+saveRDS(samp.keep, "tmp/samp.keep.rds")
+```
+
+## `fit_null_mod.R`
+
+To fit the null model, we need to specify the outcome variable, any covariates,
+and specify the distribution family. The null model object gets saved to disk
+so we can pass it to the association testing script, as well as dig into the
+details if necessary.
+
+For our default AAO analysis, the `--outcome` we pass is the Martingale residuals
+from the Cox regression, and the `--covars` are the same variables we used as
+covariates in the Cox regression (sex, E2, E4, pc1 and pc2 in this example).
+
+**bash:**
+
+```{bash}
+fit_null_mod.R \
+  tmp/pheno_adf.rds \
+  --grm_file tmp/b_pcr_mat.rds \
+  --sample_id tmp/samp.keep.rds \
+  --outcome martingale \
+  --family gaussian \
+  --out_file tmp/nullmod.rds \
+  --covars sex E2 E4 pc1 pc2 pc3
+```
+
+## `association_test.R`
+
+We now have everything we need to run the association testing. This script
+saves the output of `assocTestSingle()` to `tmp/assoc.rds`.
+
+**bash:**
+
+```{bash}
+association_test.R \
+  tmp/example.gds \
+  tmp/pheno_adf.rds \
+  --out_prefix tmp/ \
+  --sample_id tmp/samp.keep.rds \
+  --variant_id tmp/vars_qc_keep.rds \
+  --null_model tmp/nullmod.rds
+```
+
+## `assoc_plots.R`
+
+Typically, the first things an analyst will want to check after running the
+association testing are the Manhattan and QQ plot:
+
+**bash:**
+
+```{bash}
+assoc_plots.R tmp/assoc.rds --out_prefix fig/
+```
+
+```{r assoc_figs}
+include_graphics(c("fig/qq.png", "fig/manh.png"))
+```
+
+# Fin
+
+Time to render document: `r Sys.time() - st`
+
+Clean up data files created to render this document:
+
+*bash:*
+
+```{bash}
+rm -r tmp
+```
