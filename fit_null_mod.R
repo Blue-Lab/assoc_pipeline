@@ -12,7 +12,8 @@ argp <- arg_parser("Fit null model") %>%
                default = "nullmod.rds") %>%
   add_argument("--covars",
                help = "Covariate variable names (space-separated)", nargs=Inf) %>%
-  add_argument("--sample_id", help = "File with vector of sample IDs")
+  add_argument("--sample_id", help = "File with vector of sample IDs") %>%
+  add_argument("--group_var", help = 'Grouping variable to fit heterogeneous residual error variances. Can only be used when family = "gaussian"')
 
 argv <- parse_args(argp)
 
@@ -41,9 +42,14 @@ if (!is.na(argv$grm_file)) {
     grm <- NULL
 }
 
+
+if (!is.na(argv$group_var)) {
+    group_var <- NULL
+}
+
 nullmod <- fitNullModel(pheno, outcome = argv$outcome, covars = argv$covars,
                         cov.mat = grm, family = argv$family, verbose=FALSE,
-                        sample.id = sample_id)
+                        sample.id = sample_id, group.var = argv$group_var)
 
 message("Null model fixed effects:")
 message(nullmod$fixef)
