@@ -485,7 +485,7 @@ pcair.R \
 
 pca_plots.R \
   tmp/b_pcair.rds \
-  --out_prefix vignette_fig/a_ \
+  --out_prefix vignette_fig/b_ \
   --group Race \
   --n_pairs 8 \
   --phenotype_file vignette_out/convert_adf.rds
