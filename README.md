@@ -123,6 +123,7 @@ installation instructions.)
 argparser\_0.7.1
 coxmeg\_1.0.13
 dplyr\_1.0.8
+fastman\_0.1.0
 GGally\_2.1.1
 ggplot2\_3.3.5
 magrittr\_2.0.2
