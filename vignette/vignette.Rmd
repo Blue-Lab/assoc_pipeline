@@ -408,7 +408,7 @@ phen <- file.path(data_dir, pheno_dir, "2009_08_24_phenotype_data.csv") %>%
 # pca_plots.R expects a variable named sample.id, so rename before writing to disk
 phen_adf <- rename(phen, sample.id = SUBJ_NO) %>%
   Biobase::AnnotatedDataFrame()
-saveRDS(phen_adf, "tmp/convert_adf.rds")
+saveRDS(phen_adf, "vignette_out/convert_adf.rds")
 ```
 
 The phenotype annotated dataframe is now saved to disk and we pass it to
@@ -421,19 +421,16 @@ pca_plots.R \
   vignette_out/a_pcair.rds \
   --out_prefix vignette_fig/a_ \
   --group Race \
-  --n_pairs 4 \
-  --phenotype_file tmp/convert_adf.rds
+  --n_pairs 8 \
+  --phenotype_file vignette_out/convert_adf.rds
 ```
 
-```{r pca_figs}
+```{r pca_a_figs}
 include_graphics(c("vignette_fig/a_pairs.png", "vignette_fig/a_pc_scree.png"))
 ```
 
-The pairwise plots turn into clouds after about the third PC and PCs 4 and
-greater account for almost no variance, so we'll use 3 for the rest of our
-steps. Note that for other analyses that did not subset this dataset to a
-random 100,000 variants, we saw population structure in the third and fourth
-PCs.
+The pairwise plots turn into clouds after about the seventh PC and PCs 8 and
+greater account for almost no variance, so we'll use 7 for the next step.
 
 ## `pcrelate.R`
 
@@ -457,7 +454,7 @@ pcrelate.R \
   vignette_out/example.gds \
   vignette_out/a_pcair.rds \
   --out_prefix tmp/a_ \
-  --n_pcs 3 \
+  --n_pcs 7 \
   --variant_id vignette_out/pruned_snps.rds \
   --sample_id  vignette_out/kinship_errors_rm.rds \
   --sparse_thresh 0.022097
@@ -486,11 +483,26 @@ pcair.R \
   --sample_id  vignette_out/kinship_errors_rm.rds \
   --num_core 12
 
+pca_plots.R \
+  tmp/b_pcair.rds \
+  --out_prefix vignette_fig/a_ \
+  --group Race \
+  --n_pairs 8 \
+  --phenotype_file vignette_out/convert_adf.rds
+```
+
+The pairwise PC plots look similar. Continue with 7 PCs.
+
+```{r pca_b_figs}
+include_graphics("vignette_fig/b_pairs.png")
+```
+
+```{bash}
 pcrelate.R \
   vignette_out/example.gds \
   tmp/b_pcair.rds \
   --out_prefix tmp/b_ \
-  --n_pcs 3 \
+  --n_pcs 7 \
   --variant_id vignette_out/pruned_snps.rds \
   --sample_id  vignette_out/kinship_errors_rm.rds \
   --scale_kin 2 \
