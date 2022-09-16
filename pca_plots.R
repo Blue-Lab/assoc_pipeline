@@ -39,6 +39,7 @@ if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
     annot <- readRDS(argv$phenotype_file)
     if ("AnnotatedDataFrame" %in% class(annot)) annot %<>% pData()
     stopifnot(group %in% names(annot))
+    if (is.integer(annot[[group]])) annot[[group]] %<>% as.character()
     annot %<>% select(sample.id, !!enquo(group))
     pcs <- left_join(pcs, annot, by="sample.id")
 } else {
