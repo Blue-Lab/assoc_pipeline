@@ -57,8 +57,10 @@ npr <- min(argv$n_pairs, n)
 p <- ggpairs(pcs, mapping=aes_string(color=group), columns=1:npr,
              lower=list(continuous=wrap("points", alpha=0.5)),
              diag=list(continuous="densityDiag"),
-             upper=list(continuous="blank"))
-png(paste0(out_prefix, "pairs.png"), width=8, height=8, units="in", res=150)
+             upper=list(continuous="blank"),
+             legend = c(npr, npr))
+
+png(paste0(out_prefix, "pairs.png"), width=10, height=10, units="in", res=150)
 print(p)
 dev.off()
 
