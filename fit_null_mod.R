@@ -42,9 +42,8 @@ if (!is.na(argv$grm_file)) {
     grm <- NULL
 }
 
-
-if (!is.na(argv$group_var)) {
-    group_var <- NULL
+if (is.na(argv$group_var)) {
+    argv$group_var <- NULL
 }
 
 nullmod <- fitNullModel(pheno, outcome = argv$outcome, covars = argv$covars,
@@ -52,6 +51,6 @@ nullmod <- fitNullModel(pheno, outcome = argv$outcome, covars = argv$covars,
                         sample.id = sample_id, group.var = argv$group_var)
 
 message("Null model fixed effects:")
-message(nullmod$fixef)
+print(nullmod$fixef)
 
 saveRDS(nullmod, argv$out_file)
