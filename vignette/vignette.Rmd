@@ -11,6 +11,22 @@ output:
     code_folding: show
 ---
 
+# Introduction
+
+This pipeline provides a friendly user interface for the conversion,
+manipulation and analysis of genetic data. It expects genotype data to be in
+[GDS format](https://github.com/zhengxwen/gdsfmt) and uses the [`SeqArray`
+interface](https://github.com/zhengxwen/SeqArray). This pipeline is also
+compatible with dosage genotype data (like you would get from the output of the
+[TOPMed Imputation Server](https://imputation.biodatacatalyst.nhlbi.nih.gov/)).
+Some of the scripts take the `--dosage` flag. See the script help pages for
+details.
+
+Additionally, users will need phenotype data with an outcome variable, and
+age-at-event variable if doing survival analysis, saved as an R object (.rds
+file). If applicable, users will also need covariate variables in the phenotype
+file and a pedigree file to compare to a genetic relatedness matrix.
+
 # Setup
 
 ## Save start time
@@ -23,7 +39,7 @@ st <- Sys.time()
 
 ## R Libraries
 
-This interactive Rmarkdown document makes use of the following packages:
+This reproducible Rmarkdown document makes use of the following packages:
 
 ```{r library, message = FALSE}
 library(magrittr)
@@ -44,7 +60,7 @@ shells and programming languages, see the
 for details.
 
 Specify the `-l` option for bash, see `man bash` for details. Executable chunks
-that use an engine _besides R_ will have a "**bash**" tag preceeding them.
+that use an engine _besides R_ will have a "**bold**" tag preceeding them.
 
 ```{r bash_options}
 opts_chunk$set(engine.opts = list(bash = "-l"))
@@ -72,39 +88,16 @@ rm tmp/* vignette_fig/* vignette_out/*
 ## Note: piping with `magrittr`
 
 This document relies heavily on the pipe operators in the `magrittr` package,
-chiefly `%>%` and `%<>%`. Briefly,
-
-```
-foo <- x %>% bar() %>% baz()
-```
-
-is equivalent to
-
-```
-foo <- baz(bar(x))
-```
-
-and
-
-```
-foo %<>% bar()
-```
-
-is equivalent to
-
-```
-foo <- bar(foo)
-```
+chiefly `%>%` and `%<>%`. Briefly, `foo <- x %>% bar() %>% baz()` is equivalent to
+`foo <- baz(bar(x))` and `foo %<>% bar()` is equivalent to `foo <- bar(foo)`.
 
 See `vignette("magrittr")` for more.
 
 # GDS conversion
 
-This pipeline expects genotype data to be in GDS format, although many of our
-source data will be in a PLINK format (SNPRelate can also convert VCF to GDS).
-This vignette will use a subset of the `NG00020_plink` data that's been
-subsetted to a random 100,000 variants.  PLINK expects files grouped by a
-common name with different extensions.
+The first step will be to convert our data to
+GDS.  This vignette will use a subset of the `NG00020_plink` data that's been
+subsetted to a random 100,000 variants. 
 
 This step took approximately 15 minutes on an example dataset (not the
 subsetted dataset used in this dataset to speed up computation time).
@@ -238,9 +231,10 @@ variants. This script outputs two RDS files in the `tmp/` directory:
 1. `king_out.rds`, the whole output from `snpgdsIBDKING()`, and
 1. `king_grm.rds`, just the GRM from the `snpgdsIBDKING()` output.
 
-KING calculates relatedness within and between families
-differently, so we create a vector of FIDs and save as a .rds object to pass
-to KING. See `?SNPRelate::snpgdsIBDKING` for details.
+KING calculates relatedness within and between families differently, so we
+create a vector of FIDs and save as a .rds object to pass to KING. See
+`?SNPRelate::snpgdsIBDKING` for details. Use the `--num_core` argument to
+parallelize across cores to speed up computation time.
 
 ```{r king_fids}
 fam <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub.fam" %>%
@@ -260,13 +254,14 @@ king_grm.R \
   --out_prefix vignette_out/ \
   --variant_id vignette_out/pruned_snps.rds \
   --sample_id  tmp/all_missing_rm.rds \
-  --family_id tmp/fid_keep.rds
+  --family_id tmp/fid_keep.rds \
+  --num_core 12
 ```
 
 ## `kinship_plot.R`
 
-With the GRM we can compare the computed relationships to the known
-relationships and make sure that that kinship and IBS0 values are consistent.
+With the GRM we can plot kinship and IBS0 values, which can help us quickly
+identify duplicate samples or cryptic relatedness in the sampleset.
 
 **bash:**
 
@@ -280,13 +275,25 @@ include_graphics("vignette_fig/kinship.png")
 
 ## Check inferred vs known relationships
 
-```{r ped}
+If we also have a pedigree, we can compare the GRM to expected relationships.
+We'll only consider relationships of degree 3 or higher; as you can see from
+the above plot, the boundaries between less-related groups grow blurrier and
+blurrier in the bottom-right corner.
+
+Define the cutpoints for different relationships.
+
+```{r cuts}
 cut.dup <- 1/(2^(3/2))
 cut.deg1 <- 1/(2^(5/2))
 cut.deg2 <- 1/(2^(7/2))
 cut.deg3 <- 1/(2^(9/2))
 cut.k0 <- 0.004
+```
 
+Read in the pedigree and format it in a way that's compatible with
+`GWASTools::pedigreeCheck()`.
+
+```{r ped}
 ped_dir <- "/nfs/beluga0_home/DATA/NIAGADS/NG00020/NG00020_LOAD_phenotype_files/NG00020_LOAD_phenotype/phenotype"
 ped <- file.path(ped_dir, "2009_11_03_finalCompletePedigree.csv") %>%
   read.csv(header = TRUE) %>%
@@ -296,7 +303,12 @@ ped <- file.path(ped_dir, "2009_11_03_finalCompletePedigree.csv") %>%
   mutate(across(sex, ~case_when(.x == 1 ~ "M", .x == 2 ~ "F", TRUE ~ NA_character_)))
 twins <- filter(ped, !(TWIN_ID %in%  c(".", ""))) %>%
   select(individ, TWIN_ID)
+```
 
+We can convert the KING GRM into a pairwise-relationships format, and create
+relationship categories based on the thresholds above.
+
+```{r king-rels}
 king <- readRDS("vignette_out/king_out.rds") %>%
   SNPRelate::snpgdsIBDSelection() %>%
   mutate(obs.rel = case_when(
@@ -308,7 +320,23 @@ king <- readRDS("vignette_out/king_out.rds") %>%
      TRUE ~ "U"
   ))
 
+```
+
+Before proceeding, we need to resolve any internal inconsistencies in the
+pedigree. This pedigree has a common formatting issue where single-person
+families are included.
+
+```{r ped-chk}
 chk <- GWASTools::pedigreeCheck(ped)
+```
+
+Filtering out these families, we can convert the pedigree to a similar pairwise
+relationship format. Note that relationships calculated with
+`GWASTools::pedigreePairwiseRelatedness()` are much more precise than "Degree 2",
+"Degree 3", etc (e.g. avuncular, second cousin, etc), and we re-label them to
+match the above KING-inferred relationships.
+
+```{r}
 rels <- filter(ped, !(family %in% chk$one.person.fams$family)) %>%
   GWASTools::pedigreePairwiseRelatedness() %$%
   relativeprs %>%
@@ -323,21 +351,46 @@ rels <- filter(ped, !(family %in% chk$one.person.fams$family)) %>%
      TRUE ~ "U"
     )) %>%
   select(-matches("TWIN_ID"))
+```
 
+Join the two datasets together to compare. Below is a frequency table of the
+KING and pedigree relationships.
+
+```{r kin-compare}
 kin_compare <- filter(rels, Individ1 %in% c(king$ID1, king$ID2),
-                             Individ2 %in% c(king$ID1, king$ID2)) %>%
-  full_join(king, c(Individ1 = "ID1", Individ2 = "ID2"), suffix = c(".ped", ".king")) %>%
+                      Individ2 %in% c(king$ID1, king$ID2)) %>%
+  full_join(king, c(Individ1 = "ID1", Individ2 = "ID2"),
+            suffix = c(".ped", ".king")) %>%
   mutate(across(rel.compare, ~ ifelse(is.na(.x), "U", .x)),
                 mismatch = rel.compare != obs.rel)
 
 select(kin_compare, rel.compare, obs.rel) %>%
   table(useNA = "ifany") %>%
   kable()
+```
+
+Plot of relatives of degree 2 or higher (a pairwise list of relationships
+converted from a GRM can have thousands or millions of rows, and can be very
+slow to plot; restricting to just close relatives can speed this step up).
+
+```{r all-rels}
 g_kc_1 <- rowwise(kin_compare) %>%
   filter(any(c(rel.compare, obs.rel) %in% c("PO", "FS", "Deg2", "MZ"))) %>%
   ggplot(aes(x = IBS0, y = kinship.king, color = rel.compare)) +
   geom_point()
 g_kc_1
+```
+
+Plot of just relationships where the KING-inferred value differs from the
+expected value from the pedigree. The red point in the top left represents a
+likely sample swap; it is very clearly a parent-offspring relationship, but
+was expected to be degree 2 relationship.
+
+The remaining relationship mismatches are less clearly indicative of sample
+swaps. They are all near the cutoff between degrees 2, 3 and "unrelated", and
+we would expect to see such a pattern in a plot like this.
+
+```{r}
 g_kc_2 <- filter(kin_compare, mismatch) %>%
   ggplot(aes(x = IBS0, y = kinship.king, color = rel.compare)) +
   geom_point()
@@ -362,7 +415,8 @@ saveRDS(all_missing_rm[!(all_missing_rm %in% msm_rm_ids)], "vignette_out/kinship
 
 We won't use the KING GRM for association testing, but it does allows us to
 select an unrelated sample set for PCA. Here we use the default kinship and
-divergence thresholds of $2^{-9/2}$ and $-2^{-9/2}$, respectively.
+divergence thresholds of $2^{-9/2}$ and $-2^{-9/2}$, respectively. `pcair.R`
+also uses the optional `--num_core` argument.
 
 This script saves several outputs from `pcair()`:
 
@@ -521,11 +575,13 @@ rm tmp/a_*
 # Phenotype preparation
 
 This will be one of the hardest steps to automate and generally requires
-hands-on manipulation of the data. In this example, we had to do a lot of work
-to define an age variable for cases and controls. For that reason, here we start
-with a phenotype file that's already had a lot of QC done on it. For a full
-explanation, see
-`/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/pheno/pheno_qc.html`.
+hands-on manipulation of the data.  For that reason, here we start
+with a phenotype file that's already been cleaned and formatted, converted to
+an annotated dataframe, and saved as an RDS file.
+
+Make sure that the sample ID field in the phenotype file is of the same type
+as the GDS sample ID, and named "sample.id". Make sure that the sex variable
+is encoded as either "M"/"F" or `1L`/`2L`.
 
 To set things up for this vignette, we read in the phenotype file and select
 the variables of interest.
@@ -548,7 +604,9 @@ run the sex check:
 ```{bash}
 plink \
   --bfile /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub \
-  --out tmp/plink --noweb --check-sex
+  --out tmp/plink \
+  --noweb \
+  --check-sex
 ```
 
 Use the helper function `blPipeline::read_sexcheck()` to read the PLINK output.
@@ -557,7 +615,7 @@ sexcheck output includes `PEDSEX`, which comes from the .fam file. This is
 included here as well as the variable `sex` from the phenotype file (because
 despite what you might think, these don't always match...)
 
-```{r read_sexchec}
+```{r read_sexcheck}
 sexcheck <- blPipeline::read_sexcheck("tmp/plink.sexcheck") %>%
   full_join(phen.sub, by = c(IID = "sample.id")) %>%
   select(1:6, SEX)
@@ -687,7 +745,6 @@ Biobase::varLabels(pheno_adf)[Biobase::varLabels(pheno_adf) == "SEX"] <- "sex"
 seqData <- SeqVarTools::SeqVarData(gds, pheno_adf)
 
 saveRDS(pheno_adf, "vignette_out/pheno_adf.rds")
-SeqArray::seqClose(gds)
 ```
 
 # Additional QC
@@ -703,8 +760,8 @@ It is importont to control for these factors when testing HWE (see
 ### `run_ruth.sh`
 
 Our preferred method is RUTH, which can calculate HWE on a set of diverse
-samples by adjusting for principle components. Users can do this manually with
-the `ruth.R` script, but can also use the wrapper script `run_ruth.sh` to:
+samples by adjusting for principle components. Users can do this manually
+by running RUTH, but can also use the wrapper script `run_ruth.sh` to:
 
 1. Get a vector of control sample IDs from a phenotype file
 1. Run PC-AiR to calculate a set of unrelateds _from the controls_
@@ -748,9 +805,35 @@ run_ruth.sh \
   -D tmp/b_pcr_mat.rds \
   -k vignette_out/king_grm.rds \
   -v vignette_out/pruned_snps.rds \
-  -n 3 \
+  -n 7 \
   -N 12 \
   -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub
+```
+
+We'll apply a relatively strict threshold of p<0.01 to exclude variants outside
+of HWE. Note that `ABS_PVAL` from the RUTH output is the absolute value of the
+negative log pvalue.  See [Kwong et al
+(2021)](https://academic.oup.com/genetics/article/218/1/iyab044/6171183) for
+details.
+
+```{r ruth-exclude}
+id_map <- data.frame(
+  variant.id = SeqArray::seqGetData(gds, "variant.id"),
+  annot.id = SeqArray::seqGetData(gds, "annotation/id")
+)
+ruth <- readRDS("tmp/ruth.rds") %>%
+  left_join(id_map, c(ID = "annot.id")) %>%
+  filter(ABS_PVAL < 2)
+```
+
+And ahead of association testing, let's subset our variants to autosomal
+variants.
+
+```{r}
+ruth_auto <- filter(ruth, between(CHROM, 1, 22))
+vars_keep <- readRDS("tmp/vars_qc_keep.rds")
+vars_ruth_rmd <- vars_keep[vars_keep %in% ruth_auto$variant.id]
+saveRDS(vars_ruth_rmd, "tmp/vars_ruth_rmd.rds")
 ```
 
 # Null model and association testing
@@ -762,7 +845,7 @@ It took approximately 94 minutes to run on an example dataset.
 ## Create sample and/or variant keep list
 
 First, we'll need to create keep lists from our previous QC steps. We can use
-`tmp/vars_qc_keep.rds` that we've already used for the variant keep list, but
+`tmp/vars_ruth_rmd.rds` that we just prepared, but
 let's create a keep list that excludes samples with mismatched sex and
 relationships.
 
@@ -801,6 +884,12 @@ fit_null_mod.R \
 We now have everything we need to run the association testing. This script
 saves the output of `assocTestSingle()` to `tmp/assoc.rds`.
 
+This vignette uses a small subset of a real dataset, so the association testing
+runs quickly. However, with larger datasets, this can be a computationally
+intensive step. `association_test.R` takes the optional `--chromosome` argument
+to provide an easy interface for parallelizing, and `assoc_combine.R` can
+combine the outputs. Use the `--help` flag for details.
+
 **bash:**
 
 ```{bash}
@@ -824,13 +913,31 @@ association testing are the Manhattan and QQ plot:
 assoc_plots.R tmp/assoc.rds --out_prefix vignette_fig/
 ```
 
-```{r assoc_figs}
-include_graphics(c("vignette_fig/qq.png", "vignette_fig/manh.png"))
+```{r qq}
+include_graphics("vignette_fig/qq.png")
 ```
 
-# Fin
+The above plot includes the calculated lambda-50, but we can also calculate it
+from the p-values in the association test results.
 
-Time to render document: `r Sys.time() - st`
+```{r lambda}
+assoc <- readRDS("tmp/assoc.rds")
+blPipeline::calculate_lambda((assoc$Score.Stat)^2, df = 1)
+```
+
+This toy example is under-powered to detect any significatn associations:
+
+```{r qq}
+include_graphics("vignette_fig/manh.png")
+```
+
+# Wrap-up
+
+Time to render document:
+
+```{r doc-time}
+Sys.time() - st
+```
 
 Clean up data files created to render this document:
 
@@ -839,3 +946,27 @@ Clean up data files created to render this document:
 ```{bash}
 rm -r tmp
 ```
+
+Close the connection to the GDS file.
+
+```{r seqClose}
+SeqArray::seqClose(gds)
+```
+
+# Addenda
+
+## Troubleshooting and common errors
+
+* Many steps require standardized ID field type. For example, if `sample.id` in
+  a GDS is of type "integer" but type "character" in a phenotype file, certain
+  steps will fail.
+* Many functions require the sample ID field to be named "sample.id".
+* Fitting the null model requires the sample ID fields in the GDS and phenotype
+  to be identical (same samples in the same order). KING requires the sample ID
+  and FID vectors to be sorted in the same order.
+
+## Run PC-Relate by block
+
+PC-Relate is one of the most computationally demanding steps, but it can be run
+by block either in parallel or sequentially. See [here](./pcrelate_by_block.md)
+for an example.
