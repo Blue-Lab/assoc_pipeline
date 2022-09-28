@@ -110,7 +110,7 @@ Pass the path and prefix of the bed/bim/fam files to `plink_to_gds.R`.
 
 ```{bash}
 plink_to_gds.R \
-  /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub \
+  /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette \
   --out_file vignette_out/example.gds
 ```
 
@@ -237,7 +237,7 @@ create a vector of FIDs and save as a .rds object to pass to KING. See
 parallelize across cores to speed up computation time.
 
 ```{r king_fids}
-fam <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub.fam" %>%
+fam <- "/nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette.fam" %>%
   read.table(sep = " ", header = FALSE,
              col.names = c("FID", "IID", "FATHER", "MOTHER", "SEX", "PHENOTYPE")) %>%
   filter(IID %in% samp_pass_qc$sample.id)
@@ -603,7 +603,7 @@ run the sex check:
 
 ```{bash}
 plink \
-  --bfile /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub \
+  --bfile /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette \
   --out tmp/plink \
   --noweb \
   --check-sex
@@ -791,7 +791,7 @@ In this example, the arguments are:
 -v vignette_out/pruned_snps.rds: A vector of variant IDs to keep, in .rds format
 -n 5: Number of PCs to use when running RUTH
 -N 12: Number of cores to use
--P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub: PLINK .bed/.bim/.fam files
+-P /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette: PLINK .bed/.bim/.fam files
 ```
 
 **bash:**
@@ -807,7 +807,7 @@ run_ruth.sh \
   -v vignette_out/pruned_snps.rds \
   -n 5 \
   -N 12 \
-  -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub
+  -P /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette
 ```
 
 We'll apply a relatively strict threshold of p<0.01 to exclude variants outside
