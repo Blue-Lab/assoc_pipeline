@@ -97,12 +97,12 @@ See `vignette("magrittr")` for more.
 
 The first step will be to convert our data to
 GDS.  This vignette will use a subset of the `NG00020_plink` data that's been
-subsetted to a random 100,000 variants. 
+subsetted to a random 100,000 variants.
 
 This step took approximately 15 minutes on an example dataset (not the
 subsetted dataset used in this dataset to speed up computation time).
 
-Pass the path and prefix of the bed/bim/fam files to `plink_to_gds.R`. 
+Pass the path and prefix of the bed/bim/fam files to `plink_to_gds.R`.
 
 ## `plink_to_gds.R`
 
@@ -133,14 +133,8 @@ sample_qc.R vignette_out/example.gds --out_prefix tmp/
 mv tmp/missing_by_sample.png vignette_fig/
 ```
 
-```{r rm-all-ms}
-ms_by_samp <- readRDS("tmp/missing_by_sample.rds")
-all_missing_rm <- filter(ms_by_samp, missing.rate < 1)$sample.id
-saveRDS(all_missing_rm, "tmp/all_missing_rm.rds")
-```
-
-Currently, the bin width is hardcoded in the pipleine script. Because all of
-the samples have missingness < 0.02, there are only two bins in this histogram:
+There is a small number of samples with missingness > 0.3, and the rest have
+low missingness.
 
 ```{r sample_missing_fig}
 include_graphics("vignette_fig/missing_by_sample.png")
@@ -157,7 +151,6 @@ includes variant missingness and MAF, `missing_by_variant.png` and `maf.png`.
 variant_qc.R \
   vignette_out/example.gds \
   --out_prefix tmp/ \
-  --sample_id  tmp/all_missing_rm.rds \
   --ms_xmax 0.12
 mv tmp/*.png vignette_fig
 ```
@@ -172,12 +165,19 @@ include_graphics("vignette_fig/maf.png")
 
 It's common to practice to filter variants and samples on missingness and MAF.
 Many scripts in the pipeline will take variant and sample indices for
-filtering the GDS before running. There is low missingness by sample, so we
-won't create a keep list for samples:
+filtering the GDS before running.
 
 ```{r samp_qc}
 samp_qc <- readRDS("tmp/missing_by_sample.rds")
 summary(samp_qc$missing.rate)
+```
+
+Filter out the the samples with high missingness and save the sample IDs to
+disk.
+
+```{r samp-ms-keep}
+samp_pass_qc <- filter(samp_qc, missing.rate < 0.05)
+saveRDS(samp_pass_qc$sample.id, "tmp/samp_pass_qc.rds")
 ```
 
 There are variants with high missingness...
@@ -196,7 +196,7 @@ summary(varmet$maf)
 ...so we'll create a variant keep list, and save it in the `tmp/` directory:
 
 ```{r init_qc_keep}
-filter(varmet, missing.rate < 0.05, !(maf < 0.05 & maf > 0))$variant.id %>%
+filter(varmet, missing.rate < 0.05, maf > 0.05 )$variant.id %>%
   saveRDS("tmp/vars_qc_keep.rds")
 ```
 
@@ -218,8 +218,8 @@ outputs a vector of LD-pruned variant IDs `vignette_out/pruned_snps.rds`.
 ld_pruning.R \
   vignette_out/example.gds \
   --out_prefix vignette_out/ \
-  --sample_id  tmp/all_missing_rm.rds \
-  --variant_id tmp/vars_qc_keep.rds 
+  --sample_id  tmp/samp_pass_qc.rds \
+  --variant_id tmp/vars_qc_keep.rds
 ```
 
 ## `king_grm.R`
@@ -240,10 +240,10 @@ parallelize across cores to speed up computation time.
 fam <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub.fam" %>%
   read.table(sep = " ", header = FALSE,
              col.names = c("FID", "IID", "FATHER", "MOTHER", "SEX", "PHENOTYPE")) %>%
-  filter(IID %in% all_missing_rm)
+  filter(IID %in% samp_pass_qc$sample.id)
 saveRDS(fam$FID, "tmp/fid_keep.rds")
 # Overwrite to make sure it's in the right order
-saveRDS(fam$IID, "tmp/all_missing_rm.rds")
+saveRDS(fam$IID, "tmp/samp_pass_qc.rds")
 ```
 
 **bash:**
@@ -253,7 +253,7 @@ king_grm.R \
   vignette_out/example.gds \
   --out_prefix vignette_out/ \
   --variant_id vignette_out/pruned_snps.rds \
-  --sample_id  tmp/all_missing_rm.rds \
+  --sample_id  tmp/samp_pass_qc.rds \
   --family_id tmp/fid_keep.rds \
   --num_core 12
 ```
@@ -319,7 +319,6 @@ king <- readRDS("vignette_out/king_out.rds") %>%
      kinship > cut.deg3 ~ "Deg3",
      TRUE ~ "U"
   ))
-
 ```
 
 Before proceeding, we need to resolve any internal inconsistencies in the
@@ -333,7 +332,7 @@ chk <- GWASTools::pedigreeCheck(ped)
 Filtering out these families, we can convert the pedigree to a similar pairwise
 relationship format. Note that relationships calculated with
 `GWASTools::pedigreePairwiseRelatedness()` are much more precise than "Degree 2",
-"Degree 3", etc (e.g. avuncular, second cousin, etc), and we re-label them to
+"Degree 3", etc (e.g. avuncular, first cousin, etc), and we re-label them to
 match the above KING-inferred relationships.
 
 ```{r}
@@ -408,7 +407,8 @@ mismatches_rm <- rowwise(mismatches) %>%
 select(mismatches_rm, rel.compare, obs.rel) %>% table()
 msm_rm_ids <- c(mismatches_rm$Individ1, mismatches_rm$Individ2) %>% unique()
 length(msm_rm_ids)
-saveRDS(all_missing_rm[!(all_missing_rm %in% msm_rm_ids)], "vignette_out/kinship_errors_rm.rds")
+saveRDS(samp_pass_qc$sample.id[!(samp_pass_qc$sample.id %in% msm_rm_ids)],
+        "vignette_out/kinship_errors_rm.rds")
 ```
 
 ## `pcair.R`
@@ -475,7 +475,7 @@ pca_plots.R \
   vignette_out/a_pcair.rds \
   --out_prefix vignette_fig/a_ \
   --group Race \
-  --n_pairs 8 \
+  --n_pairs 6 \
   --phenotype_file vignette_out/convert_adf.rds
 ```
 
@@ -483,8 +483,8 @@ pca_plots.R \
 include_graphics(c("vignette_fig/a_pairs.png", "vignette_fig/a_pc_scree.png"))
 ```
 
-The pairwise plots turn into clouds after about the seventh PC and PCs 8 and
-greater account for almost no variance, so we'll use 7 for the next step.
+The pairwise plots turn into clouds after about the 5th PC, so we'll use 5 for
+the next step.
 
 ## `pcrelate.R`
 
@@ -508,7 +508,7 @@ pcrelate.R \
   vignette_out/example.gds \
   vignette_out/a_pcair.rds \
   --out_prefix tmp/a_ \
-  --n_pcs 7 \
+  --n_pcs 5 \
   --variant_id vignette_out/pruned_snps.rds \
   --sample_id  vignette_out/kinship_errors_rm.rds \
   --sparse_thresh 0.022097
@@ -541,11 +541,11 @@ pca_plots.R \
   tmp/b_pcair.rds \
   --out_prefix vignette_fig/b_ \
   --group Race \
-  --n_pairs 8 \
+  --n_pairs 6 \
   --phenotype_file vignette_out/convert_adf.rds
 ```
 
-The pairwise PC plots look similar. Continue with 7 PCs.
+The pairwise PC plots look similar. Continue with 5 PCs.
 
 ```{r pca_b_figs}
 include_graphics("vignette_fig/b_pairs.png")
@@ -556,7 +556,7 @@ pcrelate.R \
   vignette_out/example.gds \
   tmp/b_pcair.rds \
   --out_prefix tmp/b_ \
-  --n_pcs 7 \
+  --n_pcs 5 \
   --variant_id vignette_out/pruned_snps.rds \
   --sample_id  vignette_out/kinship_errors_rm.rds \
   --scale_kin 2 \
@@ -647,7 +647,7 @@ saveRDS(sex_mismatch, "tmp/sex_mismatch.rds")
 
 ## Join PCs
 
-We join the PCs with the phenotype data before making sure the ID order 
+We join the PCs with the phenotype data before making sure the ID order
 in the phenotype object is identical to the GDS ids (make sure they're both of
 the same type, integer in this example).
 
@@ -675,7 +675,7 @@ pass to the null model. To do this, simply pass the phenotype dataframe and the
 names of the age, case status, and covariate variables to `make_resids()`.
 
 ```{r make_resids}
-covars <- c("SEX", "E2", "E4", "pc1", "pc2", "pc3")
+covars <- c("SEX", "E2", "E4", "pc1", "pc2", "pc3", "pc4", "pc5")
 pheno %<>% blPipeline::make_resids("age", "Case_Control", covars = covars)
 ```
 
@@ -706,7 +706,7 @@ We will turn this into an AnnotatedDataFrame using the metadata from
 the data dictionary. First, though, we've added some new variables that need the
 metadata defined
 
-```{r reorder-dd} 
+```{r reorder-dd}
 names(pheno)[!(names(pheno) %in% dd.sub$VARNAME)]
 ```
 
@@ -789,7 +789,7 @@ In this example, the arguments are:
 -D tmp/b_pcr_mat.rds: GRM to be used as div object
 -k vignette_out/king_grm.rds: GRM to be used as kin object
 -v vignette_out/pruned_snps.rds: A vector of variant IDs to keep, in .rds format
--n 3: Number of PCs to use when running RUTH
+-n 5: Number of PCs to use when running RUTH
 -N 12: Number of cores to use
 -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub: PLINK .bed/.bim/.fam files
 ```
@@ -805,7 +805,7 @@ run_ruth.sh \
   -D tmp/b_pcr_mat.rds \
   -k vignette_out/king_grm.rds \
   -v vignette_out/pruned_snps.rds \
-  -n 7 \
+  -n 5 \
   -N 12 \
   -P /nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/example_subset/out/NG00020_plink_sub
 ```
@@ -864,7 +864,7 @@ details if necessary.
 
 For our default AAO analysis, the `--outcome` we pass is the Martingale residuals
 from the Cox regression, and the `--covars` are the same variables we used as
-covariates in the Cox regression (sex, E2, E4, pc1 and pc2 in this example).
+covariates in the Cox regression (sex, E2, E4, and pc1-pc5 in this example).
 
 **bash:**
 
@@ -876,7 +876,7 @@ fit_null_mod.R \
   --outcome martingale \
   --family gaussian \
   --out_file tmp/nullmod.rds \
-  --covars sex E2 E4 pc1 pc2 pc3
+  --covars sex E2 E4 pc1 pc2 pc3 pc4 pc5
 ```
 
 ## `association_test.R`
@@ -927,7 +927,7 @@ blPipeline::calculate_lambda((assoc$Score.Stat)^2, df = 1)
 
 This toy example is under-powered to detect any significatn associations:
 
-```{r qq}
+```{r manh}
 include_graphics("vignette_fig/manh.png")
 ```
 
