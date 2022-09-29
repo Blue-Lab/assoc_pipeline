@@ -27,6 +27,10 @@ age-at-event variable if doing survival analysis, saved as an R object (.rds
 file). If applicable, users will also need covariate variables in the phenotype
 file and a pedigree file to compare to a genetic relatedness matrix.
 
+Lastly, tasks like resolving sample swaps, pedigree errors and phenotype data
+QC are beyond the scope of this vignette, but see [INSERT RESOURCES]. The example data
+used here have already been through these QC steps.
+
 # Setup
 
 ## Save start time
@@ -96,8 +100,8 @@ See `vignette("magrittr")` for more.
 # GDS conversion
 
 The first step will be to convert our data to
-GDS.  This vignette will use a subset of the `NG00020_plink` data that's been
-subsetted to a random 100,000 variants.
+GDS.  This vignette will use a subset of PLINK binary data that has been
+subsetted to a random 100,000 variants and approximately 1,700 samples.
 
 This step took approximately 15 minutes on an example dataset (not the
 subsetted dataset used in this dataset to speed up computation time).
@@ -117,7 +121,7 @@ plink_to_gds.R \
 # Preliminary QC
 
 Now that we have have the genetic data in GDS format, we can move onto the
-subsequent steps. Typically, we'll begin by calculating sample- and
+next steps. Typically, we'll begin by calculating sample- and
 variant-level metrics.
 
 ## `sample_qc.R`
@@ -269,146 +273,11 @@ identify duplicate samples or cryptic relatedness in the sampleset.
 kinship_plot.R vignette_out/king_out.rds --is_king --out_file vignette_fig/kinship.png
 ```
 
+Note the points clustered at (0.0, 0.5). These represent monozygotic twins in
+our dataset, but are often indicative of duplicate samples.
+
 ```{r kinship_fig}
 include_graphics("vignette_fig/kinship.png")
-```
-
-## Check inferred vs known relationships
-
-If we also have a pedigree, we can compare the GRM to expected relationships.
-We'll only consider relationships of degree 3 or higher; as you can see from
-the above plot, the boundaries between less-related groups grow blurrier and
-blurrier in the bottom-right corner.
-
-Define the cutpoints for different relationships.
-
-```{r cuts}
-cut.dup <- 1/(2^(3/2))
-cut.deg1 <- 1/(2^(5/2))
-cut.deg2 <- 1/(2^(7/2))
-cut.deg3 <- 1/(2^(9/2))
-cut.k0 <- 0.004
-```
-
-Read in the pedigree and format it in a way that's compatible with
-`GWASTools::pedigreeCheck()`.
-
-```{r ped}
-ped_dir <- "/nfs/beluga0_home/DATA/NIAGADS/NG00020/NG00020_LOAD_phenotype_files/NG00020_LOAD_phenotype/phenotype"
-ped <- file.path(ped_dir, "2009_11_03_finalCompletePedigree.csv") %>%
-  read.csv(header = TRUE) %>%
-  # Match format required for pedigreeCheck()
-  rename(family = FAM_NO, individ = SUBJ_NO, mother = MOTHER,
-                father = FATHER, sex = SEX) %>%
-  mutate(across(sex, ~case_when(.x == 1 ~ "M", .x == 2 ~ "F", TRUE ~ NA_character_)))
-twins <- filter(ped, !(TWIN_ID %in%  c(".", ""))) %>%
-  select(individ, TWIN_ID)
-```
-
-We can convert the KING GRM into a pairwise-relationships format, and create
-relationship categories based on the thresholds above.
-
-```{r king-rels}
-king <- readRDS("vignette_out/king_out.rds") %>%
-  SNPRelate::snpgdsIBDSelection() %>%
-  mutate(obs.rel = case_when(
-     kinship > cut.dup ~ "MZ",
-     kinship > cut.deg1 & IBS0 < cut.k0 ~ "PO",
-     kinship > cut.deg1 ~ "FS",
-     kinship > cut.deg2 ~ "Deg2",
-     kinship > cut.deg3 ~ "Deg3",
-     TRUE ~ "U"
-  ))
-```
-
-Before proceeding, we need to resolve any internal inconsistencies in the
-pedigree. This pedigree has a common formatting issue where single-person
-families are included.
-
-```{r ped-chk}
-chk <- GWASTools::pedigreeCheck(ped)
-```
-
-Filtering out these families, we can convert the pedigree to a similar pairwise
-relationship format. Note that relationships calculated with
-`GWASTools::pedigreePairwiseRelatedness()` are much more precise than "Degree 2",
-"Degree 3", etc (e.g. avuncular, first cousin, etc), and we re-label them to
-match the above KING-inferred relationships.
-
-```{r}
-rels <- filter(ped, !(family %in% chk$one.person.fams$family)) %>%
-  GWASTools::pedigreePairwiseRelatedness() %$%
-  relativeprs %>%
-  left_join(twins, c(Individ1 = "individ")) %>%
-  left_join(twins, c(Individ2 = "individ"), suffix = c("_1", "_2")) %>%
-  mutate(rel.compare = case_when(
-     relation == "PO" ~ "PO",
-     TWIN_ID_1 == TWIN_ID_2 ~ "MZ",
-     kinship > cut.deg1 ~ "FS",
-     kinship > cut.deg2 ~ "Deg2",
-     kinship > cut.deg3 ~ "Deg3",
-     TRUE ~ "U"
-    )) %>%
-  select(-matches("TWIN_ID"))
-```
-
-Join the two datasets together to compare. Below is a frequency table of the
-KING and pedigree relationships.
-
-```{r kin-compare}
-kin_compare <- filter(rels, Individ1 %in% c(king$ID1, king$ID2),
-                      Individ2 %in% c(king$ID1, king$ID2)) %>%
-  full_join(king, c(Individ1 = "ID1", Individ2 = "ID2"),
-            suffix = c(".ped", ".king")) %>%
-  mutate(across(rel.compare, ~ ifelse(is.na(.x), "U", .x)),
-                mismatch = rel.compare != obs.rel)
-
-select(kin_compare, rel.compare, obs.rel) %>%
-  table(useNA = "ifany") %>%
-  kable()
-```
-
-Plot of relatives of degree 2 or higher (a pairwise list of relationships
-converted from a GRM can have thousands or millions of rows, and can be very
-slow to plot; restricting to just close relatives can speed this step up).
-
-```{r all-rels}
-g_kc_1 <- rowwise(kin_compare) %>%
-  filter(any(c(rel.compare, obs.rel) %in% c("PO", "FS", "Deg2", "MZ"))) %>%
-  ggplot(aes(x = IBS0, y = kinship.king, color = rel.compare)) +
-  geom_point()
-g_kc_1
-```
-
-Plot of just relationships where the KING-inferred value differs from the
-expected value from the pedigree. The red point in the top left represents a
-likely sample swap; it is very clearly a parent-offspring relationship, but
-was expected to be degree 2 relationship.
-
-The remaining relationship mismatches are less clearly indicative of sample
-swaps. They are all near the cutoff between degrees 2, 3 and "unrelated", and
-we would expect to see such a pattern in a plot like this.
-
-```{r}
-g_kc_2 <- filter(kin_compare, mismatch) %>%
-  ggplot(aes(x = IBS0, y = kinship.king, color = rel.compare)) +
-  geom_point()
-g_kc_2
-```
-
-Exclude detected mismatch relationships.
-
-```{r exlude-rels-mismatch}
-mismatches <- filter(kin_compare, mismatch)
-mismatches_rm <- rowwise(mismatches) %>%
-  filter(!all(c(rel.compare, obs.rel) %in% c("Deg2", "Deg3", "U")),
-         !all(c(rel.compare, obs.rel) %in% c("FS", "Deg2")))
-
-select(mismatches_rm, rel.compare, obs.rel) %>% table()
-msm_rm_ids <- c(mismatches_rm$Individ1, mismatches_rm$Individ2) %>% unique()
-length(msm_rm_ids)
-saveRDS(samp_pass_qc$sample.id[!(samp_pass_qc$sample.id %in% msm_rm_ids)],
-        "vignette_out/kinship_errors_rm.rds")
 ```
 
 ## `pcair.R`
@@ -437,7 +306,7 @@ pcair.R \
   vignette_out/king_grm.rds \
   --out_prefix vignette_out/a_ \
   --variant_id vignette_out/pruned_snps.rds \
-  --sample_id  vignette_out/kinship_errors_rm.rds \
+  --sample_id  tmp/samp_pass_qc.rds \
   --num_core 12
 ```
 
@@ -510,7 +379,7 @@ pcrelate.R \
   --out_prefix tmp/a_ \
   --n_pcs 5 \
   --variant_id vignette_out/pruned_snps.rds \
-  --sample_id  vignette_out/kinship_errors_rm.rds \
+  --sample_id  tmp/samp_pass_qc.rds \
   --sparse_thresh 0.022097
 ```
 
@@ -534,7 +403,7 @@ pcair.R \
   vignette_out/king_grm.rds \
   --out_prefix tmp/b_ \
   --variant_id vignette_out/pruned_snps.rds \
-  --sample_id  vignette_out/kinship_errors_rm.rds \
+  --sample_id  tmp/samp_pass_qc.rds \
   --num_core 12
 
 pca_plots.R \
@@ -558,7 +427,7 @@ pcrelate.R \
   --out_prefix tmp/b_ \
   --n_pcs 5 \
   --variant_id vignette_out/pruned_snps.rds \
-  --sample_id  vignette_out/kinship_errors_rm.rds \
+  --sample_id  tmp/samp_pass_qc.rds \
   --scale_kin 2 \
   --sparse_thresh 0.022097
 ```
@@ -594,57 +463,6 @@ phen.sub <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/pheno/out/pheno_adf.rds"
   mutate(across(Case_Control, as.integer))
 ```
 
-## Compare genetic and annotated sex
-
-Sex mismatches often indicate sample swaps. Using the original PLINK files,
-run the sex check:
-
-**bash:**
-
-```{bash}
-plink \
-  --bfile /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette \
-  --out tmp/plink \
-  --noweb \
-  --check-sex
-```
-
-Use the helper function `blPipeline::read_sexcheck()` to read the PLINK output.
-Join it to the phenotype to compare calculated and expected sex. Note that the
-sexcheck output includes `PEDSEX`, which comes from the .fam file. This is
-included here as well as the variable `sex` from the phenotype file (because
-despite what you might think, these don't always match...)
-
-```{r read_sexcheck}
-sexcheck <- blPipeline::read_sexcheck("tmp/plink.sexcheck") %>%
-  full_join(phen.sub, by = c(IID = "sample.id")) %>%
-  select(1:6, SEX)
-```
-
-Let's first check that the coding in the .fam file matches the phenotype file
-(M=1, F=2)
-
-```{r compare_fam_pheno}
-select(sexcheck, PEDSEX, SEX) %>% table(useNA = "ifany")
-```
-
-We can divide these into two groups: samples where sex from the .fam file does
-not match sex computed from the genotype, and samples where PLINK could not
-assess the sex of the sample.
-
-```{r sexcheck_status}
-filter(sexcheck, STATUS == "PROBLEM")
-```
-
-Without extra information to determine why there's a mismatch, we'll filter
-out samples where sex doesn't match. Creat a vector of IDs of samples and save
-it to disk.
-
-```{r sex_mismatch}
-sex_mismatch <- filter(sexcheck, PEDSEX != SNPSEX, SNPSEX != 0)$IID
-saveRDS(sex_mismatch, "tmp/sex_mismatch.rds")
-```
-
 ## Join PCs
 
 We join the PCs with the phenotype data before making sure the ID order
@@ -662,8 +480,6 @@ gds <- SeqArray::seqOpen("vignette_out/example.gds")
 gds.id <- SeqArray::seqGetData(gds, "sample.id")
 pheno <- left_join(phen.sub, pcs, "sample.id") %>%
   filter(sample.id %in% gds.id)
-id_not_in_pheno <- gds.id[!(gds.id %in% pheno$sample.id)]
-pheno %<>% bind_rows(data.frame(sample.id = id_not_in_pheno))
 pheno <- pheno[match(gds.id, pheno$sample.id), ]
 ```
 
@@ -679,32 +495,18 @@ covars <- c("SEX", "E2", "E4", "pc1", "pc2", "pc3", "pc4", "pc5")
 pheno %<>% blPipeline::make_resids("age", "Case_Control", covars = covars)
 ```
 
-## Recoding categorical variables
+## Preparing the data dictionary
 
-We'll use the data dictionary to recode some categorical variables to make them
-more descriptive for plots.
+We will turn this into an AnnotatedDataFrame using the metadata from
+the data dictionary. First, though, we've added some new variables that need the
+metadata defined
 
 ```{r dd}
 dd <- file.path(data_dir, pheno_dir, "2009_07_24_data_dictionary.csv") %>%
   read.csv(as.is = TRUE)
 dd.sub <- filter(dd, VARNAME %in% names(phen.sub)) %>%
     select(VARNAME, VARDESC, VALUES)
-
-pheno %<>%
-  mutate(
-    SEX=c("1"="M", "2"="F")[as.character(SEX)],
-    Race=c("1"="White", "2"="Black", "3"="AI_AN", "4"="Asian_PI", "50"="Other")[as.character(Race)],
-    Hispanic=c("1"="yes", "2"="no")[as.character(Hispanic)]
-  ) %>%
-  # Make first variable sample ID
-  select(sample.id, everything())
 ```
-
-## Preparing the data dictionary
-
-We will turn this into an AnnotatedDataFrame using the metadata from
-the data dictionary. First, though, we've added some new variables that need the
-metadata defined
 
 ```{r reorder-dd}
 names(pheno)[!(names(pheno) %in% dd.sub$VARNAME)]
@@ -845,15 +647,7 @@ It took approximately 94 minutes to run on an example dataset.
 ## Create sample and/or variant keep list
 
 First, we'll need to create keep lists from our previous QC steps. We can use
-`tmp/vars_ruth_rmd.rds` that we just prepared, but
-let's create a keep list that excludes samples with mismatched sex and
-relationships.
-
-```{r pheno_keep}
-sex_exclude <- readRDS("tmp/sex_mismatch.rds")
-samp.keep <- filter(pheno, !(sample.id %in% c(sex_exclude, msm_rm_ids)))$sample.id
-saveRDS(samp.keep, "tmp/samp.keep.rds")
-```
+`tmp/vars_ruth_rmd.rds` that we just prepared.
 
 ## `fit_null_mod.R`
 
@@ -872,7 +666,7 @@ covariates in the Cox regression (sex, E2, E4, and pc1-pc5 in this example).
 fit_null_mod.R \
   vignette_out/pheno_adf.rds \
   --grm_file tmp/b_pcr_mat.rds \
-  --sample_id tmp/samp.keep.rds \
+  --sample_id tmp/samp_pass_qc.rds \
   --outcome martingale \
   --family gaussian \
   --out_file tmp/nullmod.rds \
@@ -897,7 +691,7 @@ association_test.R \
   vignette_out/example.gds \
   vignette_out/pheno_adf.rds \
   --out_prefix tmp/ \
-  --sample_id tmp/samp.keep.rds \
+  --sample_id tmp/samp_pass_qc.rds \
   --variant_id tmp/vars_qc_keep.rds \
   --null_model tmp/nullmod.rds
 ```
@@ -944,7 +738,7 @@ Clean up data files created to render this document:
 *bash:*
 
 ```{bash}
-rm -r tmp
+#rm -r tmp
 ```
 
 Close the connection to the GDS file.
