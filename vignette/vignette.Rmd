@@ -241,7 +241,8 @@ create a vector of FIDs and save as a .rds object to pass to KING. See
 parallelize across cores to speed up computation time.
 
 ```{r king_fids}
-fam <- "/nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette.fam" %>%
+data_dir <- "/nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data"
+fam <- file.path(data_dir, "out/vignette.fam") %>%
   read.table(sep = " ", header = FALSE,
              col.names = c("FID", "IID", "FATHER", "MOTHER", "SEX", "PHENOTYPE")) %>%
   filter(IID %in% samp_pass_qc$sample.id)
@@ -317,25 +318,10 @@ Two common ways to determine how many is to look at the pair-wise scatterplots
 and see which PCs seem to be separating known populations groups; and looking
 at the percent of the variance explained by each PC.
 
-To compare ancestry groups that appear in PC space to self-reported race or ancestry,
-`pca_plots.R` can take a phenotype annotated dataframe in .rds format. We create
-one here from the data downloaded from NIAGADS. We'll save the preparation of
-the final phenotype file for when we have PCs from the second iteration of PC-AiR.
-
-```{r pca-adf}
-data_dir <- "/nfs/beluga0_home/DATA/NIAGADS/NG00020"
-pheno_dir <- "NG00020_LOAD_phenotype_files/NG00020_LOAD_phenotype/phenotype/"
-phen <- file.path(data_dir, pheno_dir, "2009_08_24_phenotype_data.csv") %>%
-  read.csv(as.is = TRUE) %>%
-  mutate_at(vars(SUBJ_NO, Race), as.character)
-# pca_plots.R expects a variable named sample.id, so rename before writing to disk
-phen_adf <- rename(phen, sample.id = SUBJ_NO) %>%
-  Biobase::AnnotatedDataFrame()
-saveRDS(phen_adf, "vignette_out/convert_adf.rds")
-```
-
-The phenotype annotated dataframe is now saved to disk and we pass it to
-`pca_plots.R`.
+To compare ancestry groups that appear in PC space to self-reported race or
+ancestry, `pca_plots.R` can take a phenotype dataframe in .rds format.  We'll
+save the preparation of the final phenotype file for when we have PCs from the
+second iteration of PC-AiR.
 
 **bash:**
 
@@ -345,7 +331,7 @@ pca_plots.R \
   --out_prefix vignette_fig/a_ \
   --group Race \
   --n_pairs 6 \
-  --phenotype_file vignette_out/convert_adf.rds
+  --phenotype_file /nfs/beluga0_home1/ANALYSIS/VIGNETTE/vignette_data/out/pheno.rds
 ```
 
 ```{r pca_a_figs}
@@ -411,7 +397,7 @@ pca_plots.R \
   --out_prefix vignette_fig/b_ \
   --group Race \
   --n_pairs 6 \
-  --phenotype_file vignette_out/convert_adf.rds
+  --phenotype_file /nfs/beluga0_home1/ANALYSIS/VIGNETTE/vignette_data/out/pheno.rds
 ```
 
 The pairwise PC plots look similar. Continue with 5 PCs.
@@ -456,11 +442,10 @@ To set things up for this vignette, we read in the phenotype file and select
 the variables of interest.
 
 ```{r phen-sub}
-phen.sub <- "/nfs/beluga0_home/ANALYSIS/NIAGADS/NG00020/pheno/out/pheno_adf.rds" %>%
+phen.sub <- file.path(data_dir, "out/pheno.rds") %>%
   readRDS() %>%
-  Biobase::pData() %>%
-  select(sample.id, Case_Control, SEX, Race, Hispanic, age, E2, E4) %>%
-  mutate(across(Case_Control, as.integer))
+  select(sample.id, Case_Control, sex, Race, Hispanic, age, E2, E4) %>%
+  mutate(across(c(Case_Control, sample.id), as.integer))
 ```
 
 ## Join PCs
@@ -491,7 +476,7 @@ pass to the null model. To do this, simply pass the phenotype dataframe and the
 names of the age, case status, and covariate variables to `make_resids()`.
 
 ```{r make_resids}
-covars <- c("SEX", "E2", "E4", "pc1", "pc2", "pc3", "pc4", "pc5")
+covars <- c("sex", "E2", "E4", "pc1", "pc2", "pc3", "pc4", "pc5")
 pheno %<>% blPipeline::make_resids("age", "Case_Control", covars = covars)
 ```
 
@@ -502,7 +487,7 @@ the data dictionary. First, though, we've added some new variables that need the
 metadata defined
 
 ```{r dd}
-dd <- file.path(data_dir, pheno_dir, "2009_07_24_data_dictionary.csv") %>%
+dd <- file.path(data_dir, "out/dd.csv") %>%
   read.csv(as.is = TRUE)
 dd.sub <- filter(dd, VARNAME %in% names(phen.sub)) %>%
     select(VARNAME, VARDESC, VALUES)
@@ -540,18 +525,13 @@ pheno_adf <- Biobase::AnnotatedDataFrame(pheno)
 meta <- setNames(dd.sub$VARDESC, dd.sub$VARNAME)
 Biobase::varMetadata(pheno_adf)[names(meta), "labelDescription"] <- meta
 
-## rename to match expected values for SeqVarTools
-Biobase::varLabels(pheno_adf)[Biobase::varLabels(pheno_adf) == "SEX"] <- "sex"
-
-## check by constructing a SeqVarData object
+# check by constructing a SeqVarData object
 seqData <- SeqVarTools::SeqVarData(gds, pheno_adf)
 
 saveRDS(pheno_adf, "vignette_out/pheno_adf.rds")
 ```
 
-# Additional QC
-
-## HWE
+# HWE
 
 Deviations from Hardy-Weinberg equilbrium (HWE) can be due to genotyping
 errors, but can also be caused by family or population structure, or even by
@@ -559,7 +539,7 @@ case-control differences in the exact variants we are trying to detect in GWAS.
 It is importont to control for these factors when testing HWE (see
 [Laurie et al 2010](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3061487/)).
 
-### `run_ruth.sh`
+## `run_ruth.sh`
 
 Our preferred method is RUTH, which can calculate HWE on a set of diverse
 samples by adjusting for principle components. Users can do this manually
@@ -738,7 +718,7 @@ Clean up data files created to render this document:
 *bash:*
 
 ```{bash}
-#rm -r tmp
+rm -r tmp
 ```
 
 Close the connection to the GDS file.
