@@ -430,9 +430,9 @@ rm tmp/a_*
 # Phenotype preparation
 
 This will be one of the hardest steps to automate and generally requires
-hands-on manipulation of the data.  For that reason, here we start
-with a phenotype file that's already been cleaned and formatted, converted to
-an annotated dataframe, and saved as an RDS file.
+hands-on manipulation of the data.  For that reason, here we start with a
+phenotype file that's already been cleaned and formatted, and saved as an RDS
+file.
 
 Make sure that the sample ID field in the phenotype file is of the same type
 as the GDS sample ID, and named "sample.id". Make sure that the sex variable
@@ -589,7 +589,8 @@ run_ruth.sh \
   -v vignette_out/pruned_snps.rds \
   -n 5 \
   -N 12 \
-  -P /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette
+  -P /nfs/beluga0_home/ANALYSIS/VIGNETTE/vignette_data/out/vignette \
+  > /dev/null # Hide excessively lengthy output
 ```
 
 We'll apply a relatively strict threshold of p<0.01 to exclude variants outside
@@ -699,7 +700,7 @@ assoc <- readRDS("tmp/assoc.rds")
 blPipeline::calculate_lambda((assoc$Score.Stat)^2, df = 1)
 ```
 
-This toy example is under-powered to detect any significatn associations:
+This toy example is under-powered to detect any significant associations:
 
 ```{r manh}
 include_graphics("vignette_fig/manh.png")
@@ -718,7 +719,7 @@ Clean up data files created to render this document:
 *bash:*
 
 ```{bash}
-rm -r tmp
+#rm -r tmp
 ```
 
 Close the connection to the GDS file.
