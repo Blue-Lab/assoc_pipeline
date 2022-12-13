@@ -4,7 +4,7 @@ library(magrittr)
 
 #Read arguments
 argp <- arg_parser("Generate kinship plot") %>%
-  add_argument("pcrelate_file", help = "PC-Relate file (.rds)") %>%
+  add_argument("grm_file", help = "PC-Relate file (.rds)") %>%
   add_argument("--out_file", help = "Output filename", default = "kingship.png") %>%
   add_argument("--group", help = "grouping variable - a column in king or pc-relate dataframe") %>%
   add_argument("--is_king", flag = TRUE, help = "Is input file format from King?") %>%
@@ -20,7 +20,7 @@ sessionInfo()
 print(argv)
 
 
-rel <- readRDS(argv$pcrelate_file)
+rel <- readRDS(argv$grm_file)
 
 if(argv$is_king == TRUE){
 	kinship <- snpgdsIBDSelection(rel)
