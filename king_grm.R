@@ -36,9 +36,9 @@ gds.sample.id <- seqGetData(gds, "sample.id")
 
 if (!is.na(argv$family_id)) {
   family_id <- readRDS(argv$family_id)
-  if (is.null(sample_id) & !(length(family_id) == length(gds.sample.id))) {
-    stop("No --sample_id supplied, and --family_id is not the same length as GDS sample IDs")
-  } else if (!is.null(sample_id)) {
+  if (is.null(sample_id)) {
+    stop("No --sample_id supplied. Supply --sample_id when using --family_id")
+  } else {
     tmp_fid <- data.frame(FID = family_id, sample.id = sample_id) %>%
       filter(sample.id %in% gds.sample.id)
     family_id <- tmp_fid$FID
