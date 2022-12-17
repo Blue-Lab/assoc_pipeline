@@ -18,11 +18,14 @@ sessionInfo()
 print(argv)
 
 img_ext <- argv$img_ext
+arglist <- list(units = "in", res = 300)
 
 if (img_ext == "png") {
   plot_type <- png
 } else if (img_ext == "pdf") {
-  plot_type <- pdf
+  plot_type <- function(filename, ...) pdf(file = filename, ...)
+  # Clobber default args.
+  arglist <- list()
 } else if (img_ext == "jpeg") {
   plot_type <- jpeg
 } else {
@@ -32,13 +35,21 @@ if (img_ext == "png") {
 assoc <- readRDS(argv$assoc_file)
 
 ## qq plot
-paste0(argv$out_prefix, "qq.", img_ext) %>% plot_type(width=7, height=7, units="in", res=300)
+qqargs <- arglist
+qqargs$filename <- paste0(argv$out_prefix, "qq.", img_ext)
+qqargs$width <- 7L
+qqargs$height <- 7L
+do.call(plot_type, qqargs)
 fastqq(assoc$Score.pval, maxP = argv$maxP_q)
 dev.off()
 
 ## manhattan plot
 assoc <- mutate(assoc, chr = factor(chr, levels = c(0:26,"X","XY","Y")))
 
-paste0(argv$out_prefix, "manh.", img_ext) %>% plot_type(width=10, height=6, units="in", res=300)
+manhargs <- arglist
+manhargs$filename <- paste0(argv$out_prefix, "manh.", img_ext)
+manhargs$width <- 10
+manhargs$height <- 6 
+do.call(plot_type, manhargs)
 fastman(assoc, "chr", "pos", "Score.pval", maxP = argv$maxP_m)
 dev.off()
