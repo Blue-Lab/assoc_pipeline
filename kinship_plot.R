@@ -8,7 +8,6 @@ argp <- arg_parser("Generate kinship plot") %>%
   add_argument("--out_file", help = "Output filename", default = "kingship.png") %>%
   add_argument("--group", help = "grouping variable - a column in king or pc-relate dataframe") %>%
   add_argument("--is_king", flag = TRUE, help = "Is input file format from King?") %>%
-  add_argument("--img_ext", help="File extension for plots", default = "png") %>%
   add_argument("--x_axis", default = "k0", help = "x variable") %>%
   add_argument("--y_axis", default = "kin", help = "y variable")
                
@@ -40,9 +39,10 @@ if (!is.na(argv$group)) {
   group <- NULL
 }
 
-p <- ggplot(kinship, aes_string(argv$x_axis, argv$y_axis, color = group)) +
+png(argv$out_file)
+ggplot(kinship, aes_string(argv$x_axis, argv$y_axis, color = group)) +
     geom_hline(yintercept=2^(-seq(3,9,2)/2), linetype="dashed", color = "grey") +
     geom_point(alpha=0.2) +
     ylab("kinship estimate") +
     ggtitle("kinship")
-ggsave(argv$outfile, p)
+dev.off()
