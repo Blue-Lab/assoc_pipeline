@@ -26,6 +26,7 @@ pcs <- as.data.frame(pca$vectors[pca$unrels,])
 n <- ncol(pcs)
 names(pcs) <- paste0("PC", 1:n)
 pcs$sample.id <- row.names(pcs)
+img_ext <- argv$img_ext
 
 ## scree plot
 dat <- data.frame(pc = seq(n), varprop=pca$varprop[seq(n)])
@@ -48,8 +49,6 @@ if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
     group <- "group"
     pcs$group <- "NA"
 }
-
-img_ext <- argv$img_ext
 
 p <- ggplot(pcs, aes_string("PC1", "PC2", color=group)) + geom_point(alpha=0.5) +
     guides(colour=guide_legend(override.aes=list(alpha=1)))
