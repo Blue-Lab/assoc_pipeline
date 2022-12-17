@@ -6,6 +6,7 @@ argp <- arg_parser("Generate PC plots") %>%
   add_argument("--out_prefix", help = "Prefix for output files",
                default = "") %>%
   add_argument("--phenotype_file", help = "Phenotype file (.rds)") %>%
+  add_argument("--img_ext", help="File extension for plots", default = "png") %>%
   add_argument("--group", help = "grouping variable") %>%
   add_argument("--n_pairs", help = "number of pairwise plots", default = 6)
 
@@ -25,13 +26,14 @@ pcs <- as.data.frame(pca$vectors[pca$unrels,])
 n <- ncol(pcs)
 names(pcs) <- paste0("PC", 1:n)
 pcs$sample.id <- row.names(pcs)
+img_ext <- argv$img_ext
 
 ## scree plot
 dat <- data.frame(pc = seq(n), varprop=pca$varprop[seq(n)])
 p <- ggplot(dat, aes(x=factor(pc), y=100*varprop)) +
   geom_point() + theme_bw() +
   xlab("PC") + ylab("Percent of variance accounted for")
-ggsave(paste0(out_prefix, "pc_scree.png"), plot=p, width=6, height=6)
+ggsave(paste0(out_prefix, "pc_scree.", img_ext), plot=p, width=6, height=6)
 
 ## color by group
 if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
@@ -50,7 +52,7 @@ if (!is.na(argv$phenotype_file) & !is.na(argv$group)) {
 
 p <- ggplot(pcs, aes_string("PC1", "PC2", color=group)) + geom_point(alpha=0.5) +
     guides(colour=guide_legend(override.aes=list(alpha=1)))
-ggsave(paste0(out_prefix, "pc12.png"), plot=p, width=7, height=6)
+ggsave(paste0(out_prefix, "pc12.", img_ext), plot=p, width=7, height=6)
 
 
 npr <- min(argv$n_pairs, n)
@@ -60,10 +62,7 @@ p <- ggpairs(pcs, mapping=aes_string(color=group), columns=1:npr,
              upper=list(continuous="blank"),
              legend = c(npr, npr))
 
-png(paste0(out_prefix, "pairs.png"), width=10, height=10, units="in", res=150)
-print(p)
-dev.off()
-
+ggsave(paste0(out_prefix, "pairs.", img_ext), p, width=10, height=10, units="in")
 
 pc2 <- pcs
 names(pc2)[1:ncol(pc2)] <- sub("PC", "", names(pc2)[1:ncol(pc2)])
@@ -71,4 +70,4 @@ names(pc2)[1:ncol(pc2)] <- sub("PC", "", names(pc2)[1:ncol(pc2)])
 p <- ggparcoord(pc2, columns=1:n, groupColumn=group, alphaLines=0.5, scale="uniminmax") +
     guides(colour=guide_legend(override.aes=list(alpha=1, size=2))) +
     xlab("PC") + ylab("")
-ggsave(paste0(out_prefix, "parcoord.png"), plot=p, width=10, height=5)
+ggsave(paste0(out_prefix, "parcoord.", img_ext), plot=p, width=10, height=5)

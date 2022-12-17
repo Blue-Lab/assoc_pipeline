@@ -8,6 +8,7 @@ argp <- arg_parser("Variant QC") %>%
     add_argument("--out_prefix", help="Prefix for output files", default="") %>%
     add_argument("--sample_id", help="File with vector of sample IDs") %>%
     add_argument("--pheno_file", help="Phenotype file in annotated dataframe format (used to select only females for the X chromosome)") %>%
+    add_argument("--img_ext", help="File extension for plots", default = "png") %>%
     add_argument("--num_cores", help="Number of cores to utilize for parallel processing", default=1)
 argv <- parse_args(argp)
 
@@ -63,6 +64,6 @@ p <- data.frame(obs=sort(hw$p),
     xlab(expression(paste(-log[10], "(expected P)"))) +
     ylab(expression(paste(-log[10], "(observed P)"))) +
     theme_bw()
-ggsave(paste0(argv$out_prefix, "hwe.png"), plot=p, width=6, height=6)
+ggsave(paste0(argv$out_prefix, "hwe.", argv$img_ext), plot=p, width=6, height=6)
 
 seqClose(gds)
