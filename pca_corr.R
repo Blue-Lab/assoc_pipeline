@@ -22,7 +22,7 @@ n_pcs <- argv$n_pcs
 outfile <- argv$out_file
 
 gds <- seqOpen(argv$gds_file)
-pcaob <- readRDS(argv$pcair_file)
+pcaobj <- readRDS(argv$pcair_file)
 
 # Workaround so that the structure of our PC file matches what snpgdsPCACorr()
 # expects.
@@ -33,7 +33,7 @@ if (!(inherits(pcaobj, "snpgdsPCAClass") | inherits(pcaobj, "snpgdsEigMixClass")
 }
 
 if (!("eigenvect" %in% names(pcaobj))) {
-  warning("`pcaobj$eigenvect` is not present. Attempting to use `pcaob$vectors`")
+  warning("`pcaobj$eigenvect` is not present. Attempting to use `pcaobj$vectors`")
   pcaobj$eigenvect <- pcaobj$vectors
 }
 
