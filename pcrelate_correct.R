@@ -1,17 +1,20 @@
 #! /usr/bin/env Rscript
 
 library(argparser)
+library(magrittr)
 
-argp <- arg_parser("PC-Relate")
-  add_argument("pcrelate_prefix", help = "") %>%
+argp <- arg_parser("PC-Relate: combine and correct blocks") %>%
+  add_argument("pcrelate_prefix", help = "prefix for pcrelate_block.R output files") %>%
   add_argument("n_sample_blocks",
                help = "Number of blocks to divide samples into") %>%
   add_argument("--sparse_thresh", default = 0,
-               "Threshold for sparsifying GRM (will be multiplied by scale_kin)") %>%
+               help = "Threshold for sparsifying GRM (will be multiplied by scale_kin)") %>%
   add_argument("--scale_kin", help = "Scaling factor for GRM output",
                default = 1)
 
 argv <- parse_args(argp)
+library(GENESIS)
+library(data.table)
 
 sessionInfo()
 print(argv)
@@ -20,7 +23,7 @@ nsampblock <- as.integer(argv$n_sample_blocks)
 
 kinSelf <- NULL
 kinBtwn <- NULL
-kin.thresh <- as.numeric(argv$sparse_threshold)
+kin.thresh <- as.numeric(argv$sparse_thresh)
 
 # correct IBD results and combine
 # Note the index in the outer loop is reversed from the usual

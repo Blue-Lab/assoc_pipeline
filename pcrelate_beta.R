@@ -3,14 +3,14 @@
 library(argparser)
 library(magrittr)
 
-argp <- arg_parser("PC-Relate") %>%
+argp <- arg_parser("PC-Relate ISAF Betas") %>%
   add_argument("gds_file", help = "GDS file") %>%
   add_argument("pca_file", help = "PC-AiR output file (.rds)") %>%
   add_argument("n_pcs", help = "Number of PCs to include") %>%
   add_argument("--out_file", help = "Name for output file", default = "pcrelate_beta.rds") %>%
   add_argument("--sample_id", help = "Vector of sample IDs to include (.rds)") %>%
   add_argument("--variant_id", help = "Vector of variant IDs to include (.rds)") %>%
-  add_argument("--variant_block_size", default = 1024)
+  add_argument("--variant_block_size", help = "Variant block size", default = 1024)
 argv <- parse_args(argp)
 
 library(SeqVarTools)
@@ -22,7 +22,7 @@ print(argv)
 gds <- seqOpen(argv$gds_file)
 seqData <- SeqVarData(gds)
 
-if (!is.na(argv$variant_include_file)) {
+if (!is.na(argv$variant_id)) {
   variant_id <- readRDS(argv$variant_id)
   seqSetFilter(gds, variant.id = variant_id, action = "intersect")
 }

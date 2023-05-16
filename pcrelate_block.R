@@ -3,19 +3,19 @@
 library(argparser)
 library(magrittr)
 
-argp <- arg_parser("PC-Relate") %>%
+argp <- arg_parser("PC-Relate by bloc") %>%
   add_argument("gds_file", help = "GDS file") %>%
   add_argument("pca_file", help = "PC-AiR output (.rds)") %>%
-  add_argument("beta_file", help = "ISAS beta file (.rds)") %>%
+  add_argument("beta_file", help = "ISAF beta file (.rds)") %>%
   add_argument("block_1", help = "Sample-include block 1", type = "integer") %>%
   add_argument("block_2", help = "Sample-include block 2", type = "integer") %>%
   add_argument("n_sample_blocks", help = "Number of sample blocks", type = "integer") %>%
   add_argument("n_pcs", help = "Number of PCs to include", type = "integer") %>%
-  add_argument("out_prefix", help = "Prefix for output filename", default = "pcrelate") %>%
-  add_argument("sample_id", help = "Vector of sample IDs (.rds)") %>%
-  add_argument("variant_block_size", help = "Block size for SeqVarBlockIterator", default = 1024L) %>%
-  add_argument("variant_id", help = "Vector of variant IDs (.rds)") %>%
-  add_argument("ibd_probs", help = "Estimate pairwise IBD sharing probabilities?", default = TRUE)
+  add_argument("--out_prefix", help = "Prefix for output filename", default = "pcrelate") %>%
+  add_argument("--sample_id", help = "Vector of sample IDs (.rds)") %>%
+  add_argument("--variant_block_size", help = "Block size for SeqVarBlockIterator", default = 1024L) %>%
+  add_argument("--variant_id", help = "Vector of variant IDs (.rds)") %>%
+  add_argument("--ibd_probs", help = "Estimate pairwise IBD sharing probabilities?", default = TRUE)
 argv <- parse_args(argp)
 
 library(SeqVarTools)
@@ -23,10 +23,10 @@ library(GENESIS)
 
 sessionInfo()
 print(argv)
-
-n_sample_blocks <- argv$n_sample_blocks
-i <- argv$block_1
-j <- argv$block_2
+print(dput(argv))
+n_sample_blocks <- as.integer(argv$n_sample_blocks)
+i <- as.integer(argv$block_1)
+j <- as.integer(argv$block_2)
 
 maxblock <- max(i, j)
 if (maxblock > n_sample_blocks) {
@@ -37,7 +37,6 @@ if (maxblock > n_sample_blocks) {
 
 gds <- seqOpen(argv$gds_file)
 seqData <- SeqVarData(gds)
-
 if (!is.na(argv$variant_id)) seqSetFilter(seqData, readRDS(argv$variant_id))
 
 pca <- readRDS(argv$pca_file)
