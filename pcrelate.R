@@ -56,6 +56,8 @@ mypcrel <- pcrelate(iterator, pcs = mypcair$vectors[, seq(argv$n_pcs)],
                     small.samp.correct = argv$small_samp_correct)
 
 saveRDS(mypcrel, paste0(argv$out_prefix, "pcrelate.rds"))
-pcr_mat <- pcrelateToMatrix(mypcrel, thresh = argv$sparse_thresh,
+pcr_mat <- pcrelateToMatrix(mypcrel,
+                            thresh = argv$sparse_thresh * argv$scale_kin,
                             scaleKin = argv$scale_kin)
+
 saveRDS(pcr_mat, paste0(argv$out_prefix, "pcr_mat.rds"))

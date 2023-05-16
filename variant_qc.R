@@ -10,10 +10,12 @@ argp <- arg_parser("Variant QC") %>%
     add_argument("--pheno_file", help="Phenotype file in annotated dataframe format (used to account for sex in allele frequency calculations)") %>%
     add_argument("--num_cores", help="Number of cores to utilize for parallel processing", default=1) %>%
     add_argument("--img_ext", help="File extension for plots", default = "png") %>%
+    add_argument("--ms_bindwidth", help = "Bin width for missingness histogram", type = "numeric") %>%
     add_argument("--ms_xmin", help = "Variant-missingness plot x-axis lower limit", type = "numeric") %>%
     add_argument("--ms_xmax", help = "Variant-missingness plot x-axis upper limit", type = "numeric") %>%
     add_argument("--ms_ymin", help = "Variant-missingness plot y-axis lower limit", type = "numeric") %>%
     add_argument("--ms_ymax", help = "Variant-missingness plot y-axis upper limit", type = "numeric") %>%
+    add_argument("--maf_bindwidth", help = "Bin width for MAF histogram", type = "numeric") %>%
     add_argument("--maf_xmin", help = "MAF plot x-axis lower limit", type = "numeric") %>%
     add_argument("--maf_xmax", help = "MAF plot x-axis upper limit", type = "numeric") %>%
     add_argument("--maf_ymin", help = "MAF plot y-axis lower limit", type = "numeric") %>%
@@ -58,14 +60,14 @@ saveRDS(var.df, paste0(argv$out_prefix, "variant_metrics.rds"))
 
 # plot
 p_ms <- ggplot(var.df, aes(missing.rate)) +
-    geom_histogram(binwidth=0.01, boundary=0) +
+    geom_histogram(binwidth=as.numeric(argv$ms_bindwidth), boundary=0) +
     # Need to coerce NAs to numeric because of ggplot2 bug:
     lims(x = c(as.numeric(argv$ms_xmin), as.numeric(argv$ms_xmax)),
          y = c(as.numeric(argv$ms_ymin), as.numeric(argv$ms_ymax)))
 ggsave(paste0(argv$out_prefix, "missing_by_variant.", argv$img_ext), plot = p_ms)
 
 p_maf <- ggplot(var.df, aes(maf)) +
-    geom_histogram(binwidth=0.01, boundary=0) +
+    geom_histogram(binwidth=as.numeric(argv$maf_bindwidth), boundary=0) +
     lims(x = c(as.numeric(argv$maf_xmin), as.numeric(argv$maf_xmax)),
          y = c(as.numeric(argv$maf_ymin), as.numeric(argv$maf_ymax)))
 ggsave(paste0(argv$out_prefix, "maf.", argv$img_ext), plot = p_maf)

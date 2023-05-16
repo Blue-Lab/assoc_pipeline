@@ -17,6 +17,7 @@ print(argv)
 
 library(SNPRelate)
 library(SeqArray)
+library(dplyr)
 
 if (!is.na(argv$variant_id)) {
   variant_id <- readRDS(argv$variant_id)
@@ -30,13 +31,22 @@ if (!is.na(argv$sample_id)) {
   sample_id <- NULL
 }
 
+gds <- seqOpen(argv$gds_file)
+gds.sample.id <- seqGetData(gds, "sample.id")
+
 if (!is.na(argv$family_id)) {
   family_id <- readRDS(argv$family_id)
+  if (is.null(sample_id)) {
+    stop("No --sample_id supplied. Supply --sample_id when using --family_id")
+  } else {
+    tmp_fid <- data.frame(FID = family_id, sample.id = sample_id) %>%
+      filter(sample.id %in% gds.sample.id)
+    family_id <- tmp_fid$FID
+    sample_id <- tmp_fid$sample.id
+  }
 } else {
   family_id <- NULL
 }
-
-gds <- seqOpen(argv$gds_file)
 
 king <- snpgdsIBDKING(gds, snp.id = variant_id, sample.id = sample_id,
                       family.id = family_id, type = "KING-robust",
