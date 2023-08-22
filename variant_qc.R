@@ -10,12 +10,12 @@ argp <- arg_parser("Variant QC") %>%
     add_argument("--pheno_file", help="Phenotype file in annotated dataframe format (used to account for sex in allele frequency calculations)") %>%
     add_argument("--num_cores", help="Number of cores to utilize for parallel processing", default=1) %>%
     add_argument("--img_ext", help="File extension for plots", default = "png") %>%
-    add_argument("--ms_bindwidth", help = "Bin width for missingness histogram", type = "numeric") %>%
+    add_argument("--ms_bindwidth", help = "Bin width for missingness histogram", type = "numeric", default=0.005) %>%
     add_argument("--ms_xmin", help = "Variant-missingness plot x-axis lower limit", type = "numeric") %>%
     add_argument("--ms_xmax", help = "Variant-missingness plot x-axis upper limit", type = "numeric") %>%
     add_argument("--ms_ymin", help = "Variant-missingness plot y-axis lower limit", type = "numeric") %>%
     add_argument("--ms_ymax", help = "Variant-missingness plot y-axis upper limit", type = "numeric") %>%
-    add_argument("--maf_bindwidth", help = "Bin width for MAF histogram", type = "numeric") %>%
+    add_argument("--maf_bindwidth", help = "Bin width for MAF histogram", type = "numeric", default=0.01) %>%
     add_argument("--maf_xmin", help = "MAF plot x-axis lower limit", type = "numeric") %>%
     add_argument("--maf_xmax", help = "MAF plot x-axis upper limit", type = "numeric") %>%
     add_argument("--maf_ymin", help = "MAF plot y-axis lower limit", type = "numeric") %>%
