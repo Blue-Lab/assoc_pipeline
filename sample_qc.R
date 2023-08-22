@@ -44,7 +44,7 @@ saveRDS(miss.df, paste0(argv$out_prefix, "missing_by_sample.rds"))
 
 # plot
 p <- ggplot(miss.df, aes(missing.rate)) +
-    geom_histogram(binwidth=as.numeric(bindwidth), boundary=0) +
+    geom_histogram(binwidth=as.numeric(argv$bindwidth), boundary=0) +
     # Need to coerce NAs to numeric because of ggplot2 bug:
     lims(x = c(as.numeric(argv$xmin), as.numeric(argv$xmax)),
          y = c(as.numeric(argv$ymin), as.numeric(argv$ymax)))
